@@ -17,6 +17,8 @@ const CONFIG = {
     SECRET_KEY: process.env.SECRET_KEY || 'token',
     AUTH_API_URL: process.env.AUTH_API_URL,
     MAILER_API_URL: process.env.MAILER_API_URL,
+    // El login (incluido el PIN) se delega a fichada_api: mismos usuarios y mismo PIN.
+    FICHADA_API_URL: process.env.FICHADA_API_URL || 'http://fichada_api',
     WEB_URL: process.env.WEB_URL,
     // Basic Auth servicio↔servicio para hablar con el auth de fichada.
     AUTHORIZATION: {
