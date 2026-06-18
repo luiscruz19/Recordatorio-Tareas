@@ -19,6 +19,7 @@
     ],
     "android": {
       "package": "com.recordatorios.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-foreground-432.png",
         "backgroundImage": "./assets/adaptive-background-432.png"
