@@ -17,15 +17,14 @@ export function TaskWidget({ data }) {
                 backgroundColor: '#FFFFFF', borderRadius: 24, padding: 14, flexDirection: 'column',
             }}
         >
-            <FlexWidget style={{ flexDirection: 'row', width: 'match_parent', alignItems: 'center' }}>
+            <FlexWidget style={{ flexDirection: 'row', width: 'match_parent', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <TextWidget text="Tareas de hoy" style={{ fontSize: 15, fontWeight: '700', color: '#1F2433' }} />
-                <FlexWidget style={{ flexGrow: 1 }} />
                 <FlexWidget
                     clickAction="OPEN_URI"
                     clickActionData={{ uri: 'recordatorios://add' }}
-                    style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: '#1F4894', alignItems: 'center', justifyContent: 'center' }}
+                    style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: '#1F4894', alignItems: 'center', justifyContent: 'center' }}
                 >
-                    <TextWidget text="+" style={{ fontSize: 22, color: '#FFFFFF' }} />
+                    <TextWidget text="+" style={{ fontSize: 24, color: '#FFFFFF' }} />
                 </FlexWidget>
             </FlexWidget>
 

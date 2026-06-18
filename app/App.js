@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Linking } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
@@ -64,6 +64,7 @@ export default function App() {
     const [addOpen, setAddOpen] = useState(false);
     const [reviewOpen, setReviewOpen] = useState(false);
     const [notisOpen, setNotisOpen] = useState(false);
+    const [pendingAdd, setPendingAdd] = useState(false);
 
     const unread = notis.filter((n) => !n.read_at).length;
 
@@ -163,6 +164,21 @@ export default function App() {
         return () => { try { sub && sub.remove(); } catch { /* no-op */ } };
     }, [session, today.pending, guard, loadToday]);
 
+    // Deep links del widget: recordatorios://add abre el formulario de nueva tarea.
+    useEffect(() => {
+        const handle = (url) => {
+            if (!url) return;
+            if (url.includes('add')) setPendingAdd(true);
+            setScreen('hoy');
+        };
+        Linking.getInitialURL().then(handle).catch(() => {});
+        const sub = Linking.addEventListener('url', (e) => handle(e?.url));
+        return () => { try { sub && sub.remove(); } catch { /* no-op */ } };
+    }, []);
+    useEffect(() => {
+        if (session === 'active' && pendingAdd) { setAddOpen(true); setPendingAdd(false); }
+    }, [session, pendingAdd]);
+
     // ─── Auth (email → PIN, calco del flujo de fichada) ───────────────────────
     const onContinueEmail = async (em) => {
         const e = String(em || '').trim().toLowerCase();
@@ -258,6 +274,13 @@ export default function App() {
         setNotis(nt?.data || []);
     };
 
+    // Pull-to-refresh de la lista de Hoy.
+    const onRefresh = async () => {
+        await loadToday();
+        const nt = await guard(() => api.listNotifications());
+        setNotis(nt?.data || []);
+    };
+
     // ─── Render ──────────────────────────────────────────────────────────────
     if (!fontsLoaded || session === 'boot') {
         return (
@@ -295,6 +318,7 @@ export default function App() {
                             onAdd={() => setAddOpen(true)}
                             onOpenSettings={() => setScreen('ajustes')}
                             onOpenNotis={onOpenNotis}
+                            onRefresh={onRefresh}
                         />
                     ) : (
                         <AjustesScreen

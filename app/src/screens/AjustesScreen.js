@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView, Switch, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { ChevronLeft, ChevronRight, Clock3, Bell, RotateCcw } from 'lucide-react-native';
 import { C, F, R, GRAD_HEADER, shadowHeader, shadowCard } from '../theme';
@@ -27,6 +28,7 @@ function timeLabel(t) {
 }
 
 export function AjustesScreen({ settings, onBack, onChange, onSimulateReview, notifStatus }) {
+    const insets = useSafeAreaInsets();
     const [picker, setPicker] = useState(null); // 'start' | 'end' | null
     const s = settings || {};
     const notifOn = !!s.notif_enabled;
@@ -36,7 +38,7 @@ export function AjustesScreen({ settings, onBack, onChange, onSimulateReview, no
         <View style={{ flex: 1, backgroundColor: C.bg }}>
             <LinearGradient
                 colors={GRAD_HEADER} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={{ paddingTop: 52, paddingHorizontal: 20, paddingBottom: 24, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, ...shadowHeader }}
+                style={{ paddingTop: insets.top + 14, paddingHorizontal: 20, paddingBottom: 24, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, ...shadowHeader }}
             >
                 <Pressable onPress={onBack} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 }}>
                     <ChevronLeft size={22} color="#fff" strokeWidth={2.2} />
@@ -45,7 +47,7 @@ export function AjustesScreen({ settings, onBack, onChange, onSimulateReview, no
                 <Text style={{ fontFamily: F.bold, fontSize: 32, color: '#fff', letterSpacing: -0.8, marginTop: 8 }}>Ajustes</Text>
             </LinearGradient>
 
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 22, paddingBottom: 40 }}>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 22, paddingBottom: 40 + insets.bottom }}>
                 {/* Recordarme cada */}
                 <Text style={label}>Recordarme cada</Text>
                 <View style={{ backgroundColor: C.surface, borderRadius: R.lg, padding: 6, flexDirection: 'row', gap: 6, ...shadowCard }}>
