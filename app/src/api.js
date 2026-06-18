@@ -1,19 +1,35 @@
 import { getItem, setItem, deleteItem } from './storage';
 
 // La app habla SOLO con el api (auth queda interno; el login pega a POST /auth/login del api,
-// que proxea a fichada_auth → mismos usuarios que fichada). En builds EAS se inyecta
-// EXPO_PUBLIC_API_URL (dominio real) y GANA. Si no está (dev local con emulador) cae al gateway
-// de Traefik con Host-routing (Host: recordatorios-api.localhost).
+// que proxea a fichada_auth → mismos usuarios que fichada). EXPO_PUBLIC_API_URL (dominio real)
+// GANA siempre. Si no está: en DEV usamos el gateway local de Traefik (Host-routing), y en
+// release/OTA caemos al server real — NUNCA al gateway de emulador (10.0.2.2), que en un
+// teléfono real no existe y dejaría el fetch colgado.
 const PUBLIC_API = process.env.EXPO_PUBLIC_API_URL;
+const PROD_API = 'https://recordatorios.sda.ovh';
 const LOCAL_GATEWAY = 'http://10.0.2.2';
 const LOCAL_API_HOST = 'recordatorios-api.localhost';
-const USE_LOCAL = !PUBLIC_API;
-const BASE = (PUBLIC_API || LOCAL_GATEWAY).replace(/\/$/, '');
+const USE_LOCAL = !PUBLIC_API && __DEV__;
+const BASE = (PUBLIC_API || (__DEV__ ? LOCAL_GATEWAY : PROD_API)).replace(/\/$/, '');
 
 function baseHeaders(extra = {}) {
     const h = { 'Content-Type': 'application/json', ...extra };
     if (USE_LOCAL) h.Host = LOCAL_API_HOST;
     return h;
+}
+
+// fetch con timeout: evita que una request quede colgada para siempre (sin red / URL mala).
+async function tfetch(url, opts = {}, ms = 15000) {
+    const ctrl = new AbortController();
+    const id = setTimeout(() => ctrl.abort(), ms);
+    try {
+        return await fetch(url, { ...opts, signal: ctrl.signal });
+    } catch (e) {
+        if (e?.name === 'AbortError') throw new Error('Tiempo de espera agotado. Revisá tu conexión.');
+        throw new Error('No se pudo conectar con el servidor.');
+    } finally {
+        clearTimeout(id);
+    }
 }
 
 let token = null;
@@ -34,7 +50,7 @@ export async function clearToken() {
 export const getCurrentToken = () => token;
 
 async function req(path, opts = {}) {
-    const res = await fetch(BASE + path, {
+    const res = await tfetch(BASE + path, {
         ...opts,
         headers: baseHeaders({ token: token || '', ...(opts.headers || {}) }),
     });
@@ -49,7 +65,7 @@ async function req(path, opts = {}) {
 
 // ─── Auth (mismos usuarios que fichada) ──────────────────────────────────────
 export async function login(email, password) {
-    const res = await fetch(BASE + '/auth/login', {
+    const res = await tfetch(BASE + '/auth/login', {
         method: 'POST',
         headers: baseHeaders(),
         body: JSON.stringify({ email, password }),
@@ -66,7 +82,7 @@ export const hasPin = (email) => req(`/auth/has-pin?email=${encodeURIComponent(e
 
 // Login por PIN (ingresos siguientes al primero).
 export async function loginPin(email, pin) {
-    const res = await fetch(BASE + '/auth/login-pin', {
+    const res = await tfetch(BASE + '/auth/login-pin', {
         method: 'POST',
         headers: baseHeaders(),
         body: JSON.stringify({ email, pin }),
