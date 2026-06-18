@@ -61,6 +61,25 @@ export async function login(email, password) {
 }
 export const getMe = () => req('/auth/me');
 
+// ¿Ese email ya tiene PIN? (la app decide pedir PIN o contraseña).
+export const hasPin = (email) => req(`/auth/has-pin?email=${encodeURIComponent(email)}`);
+
+// Login por PIN (ingresos siguientes al primero).
+export async function loginPin(email, pin) {
+    const res = await fetch(BASE + '/auth/login-pin', {
+        method: 'POST',
+        headers: baseHeaders(),
+        body: JSON.stringify({ email, pin }),
+    });
+    const json = await res.json().catch(() => null);
+    if (!json?.user?.token) throw new Error(json?.message || 'PIN incorrecto');
+    await setToken(json.user.token);
+    return json.user;
+}
+
+// Setear el PIN tras el primer ingreso (requiere sesión).
+export const setPinRemote = (pin) => req('/auth/set-pin', { method: 'POST', body: JSON.stringify({ pin }) });
+
 // ─── Tareas ──────────────────────────────────────────────────────────────────
 export const getToday = () => req('/tasks/today');
 export const getCarryover = () => req('/tasks/carryover');

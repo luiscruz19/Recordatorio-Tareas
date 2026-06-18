@@ -43,6 +43,22 @@ const UserProfile = sequelize.define('user_profiles', {
                 msg: messages.generic.invalid_enum_value,
             },
         },
+    },
+    pin_hash: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+        comment: 'Hash bcrypt del PIN de acceso rápido (email + PIN). NULL = sin PIN aún'
+    },
+    pin_attempts: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+        comment: 'Intentos fallidos de PIN consecutivos (para el bloqueo)'
+    },
+    pin_locked_until: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        comment: 'Bloqueo temporal del login por PIN tras varios intentos fallidos'
     }
 }, {
     tableName: 'user_profiles',

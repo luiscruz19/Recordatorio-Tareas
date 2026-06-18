@@ -16,7 +16,7 @@ export default async (req, res, next) => {
             return res.status(401).json(errorMessage({ message: messages.generic.token_invalid }));
         }
 
-        const email = req.user.email || null;
+        const email = (req.user.email || '').toLowerCase().trim() || null;
         const name =
             req.user.name ||
             [req.user.first_name, req.user.last_name].filter(Boolean).join(' ').trim() ||
