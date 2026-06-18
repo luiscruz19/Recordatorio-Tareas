@@ -1,16 +1,14 @@
 import { getItem, setItem, deleteItem } from './storage';
 
 // La app habla SOLO con el api (auth queda interno; el login pega a POST /auth/login del api,
-// que proxea a fichada_auth → mismos usuarios que fichada). EXPO_PUBLIC_API_URL (dominio real)
-// GANA siempre. Si no está: en DEV usamos el gateway local de Traefik (Host-routing), y en
-// release/OTA caemos al server real — NUNCA al gateway de emulador (10.0.2.2), que en un
-// teléfono real no existe y dejaría el fetch colgado.
+// que proxea a fichada_auth → mismos usuarios que fichada). La base sale 100% de
+// EXPO_PUBLIC_API_URL: en builds/updates EAS se inyecta el dominio real (vía la env de EAS) y
+// GANA. Si no está (dev local con emulador) cae al gateway de Traefik con Host-routing.
 const PUBLIC_API = process.env.EXPO_PUBLIC_API_URL;
-const PROD_API = 'https://recordatorios.sda.ovh';
 const LOCAL_GATEWAY = 'http://10.0.2.2';
 const LOCAL_API_HOST = 'recordatorios-api.localhost';
-const USE_LOCAL = !PUBLIC_API && __DEV__;
-const BASE = (PUBLIC_API || (__DEV__ ? LOCAL_GATEWAY : PROD_API)).replace(/\/$/, '');
+const USE_LOCAL = !PUBLIC_API;
+const BASE = (PUBLIC_API || LOCAL_GATEWAY).replace(/\/$/, '');
 
 function baseHeaders(extra = {}) {
     const h = { 'Content-Type': 'application/json', ...extra };

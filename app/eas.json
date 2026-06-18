@@ -12,10 +12,8 @@
     "preview-test": {
       "distribution": "internal",
       "channel": "preview-test",
-      "android": { "buildType": "apk" },
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://recordatorios.sda.ovh"
-      }
+      "environment": "preview",
+      "android": { "buildType": "apk" }
     },
     "preview-local": {
       "distribution": "internal",
@@ -28,10 +26,8 @@
     "production": {
       "autoIncrement": true,
       "channel": "production",
-      "android": { "buildType": "app-bundle" },
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://recordatorios.sda.ovh"
-      }
+      "environment": "production",
+      "android": { "buildType": "app-bundle" }
     }
   },
   "submit": {
