@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import validateToken from '../../middlewares/validate-token.js';
-import resolveProfile from '../../middlewares/resolve-profile.js';
 import {
     listToday, listCarryover, createTask, updateTask, snoozeTask, deleteTask, allCarryoverToday,
 } from '../../controllers/task/task.controllers.js';
@@ -9,8 +8,8 @@ import { validate } from '../../utils/helpers.js';
 
 const task = Router();
 
-// Todas las rutas operan sobre las tareas del usuario autenticado.
-task.use(validateToken, resolveProfile);
+// Todas las rutas operan sobre las tareas del usuario autenticado (identidad = JWT de fichada).
+task.use(validateToken);
 
 task.get('/today', listToday);
 task.get('/carryover', listCarryover);

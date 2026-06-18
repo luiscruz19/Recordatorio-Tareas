@@ -17,13 +17,6 @@ const messages = {
             device_exists: 'Este dispositivo ya está vinculado',
         },
 
-        user_profile: {
-            fields_empty: {
-                user_id: 'El usuario no puede estar vacío',
-                display_name: 'El nombre no puede estar vacío',
-            }
-        },
-
         task: {
             fields_empty: {
                 user_id: 'El usuario no puede estar vacío',

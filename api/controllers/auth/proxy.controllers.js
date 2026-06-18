@@ -1,33 +1,11 @@
 import CONFIG from '../../config/config.js';
 import { successMessage, errorMessage } from '../../utils/messages.js';
-import UserProfile from '../../models/UserProfile.js';
 import getOrCreateSettings from '../../services/setting/get-or-create.js';
 
 // El login depende PURA Y EXCLUSIVAMENTE de fichada: recordatorios reenvía todos los endpoints
-// de credenciales a fichada_api (que ya maneja login + PIN sobre el Employee). El mismo
-// email + PIN de fichada sirve acá. recordatorios NO guarda credenciales ni PIN propios.
+// de credenciales a fichada_api (login + PIN sobre el Employee). NO hay usuarios locales:
+// la identidad es el user_id del JWT de fichada, y todo el dominio se indexa por ese id.
 const { FICHADA_API_URL } = CONFIG;
-
-// Espejo local mínimo del usuario (para ser dueño de tareas/ajustes). NO es auth.
-async function upsertProfile(u, fallbackEmail) {
-    const userId = u?.id || u?.user_id;
-    if (!userId) return;
-    const email = ((u?.email || fallbackEmail) || '').toLowerCase().trim() || null;
-    const name = u?.name
-        || [u?.first_name, u?.last_name].filter(Boolean).join(' ').trim()
-        || email || 'Usuario';
-
-    const [profile, created] = await UserProfile.findOrCreate({
-        where: { user_id: userId },
-        defaults: { user_id: userId, email, display_name: name },
-    });
-    if (!created) {
-        const updates = {};
-        if (email && profile.email !== email) updates.email = email;
-        if (name && name !== 'Usuario' && profile.display_name !== name) updates.display_name = name;
-        if (Object.keys(updates).length) await profile.update(updates);
-    }
-}
 
 // Reenvía una request a fichada_api/auth/* y devuelve { status, json }.
 async function forward(path, { method = 'GET', body = null, token = null } = {}) {
@@ -53,9 +31,6 @@ function tokenFromReq(req) {
 export async function login(req, res) {
     try {
         const { status, json } = await forward('/auth/login', { method: 'POST', body: req.body || {} });
-        if (status >= 200 && status < 300 && json) {
-            await upsertProfile(json.user || json.data || null, req.body?.email).catch(() => {});
-        }
         return res.status(status).json(json ?? errorMessage({ message: 'Error de autenticación' }));
     } catch (e) {
         return res.status(502).json(errorMessage({ message: 'No se pudo contactar al servicio de autenticación de fichada', extra: { error: e.message } }));
@@ -77,9 +52,6 @@ export async function hasPin(req, res) {
 export async function loginPin(req, res) {
     try {
         const { status, json } = await forward('/auth/login-pin', { method: 'POST', body: req.body || {} });
-        if (status >= 200 && status < 300 && json) {
-            await upsertProfile(json.user || json.data || null, req.body?.email).catch(() => {});
-        }
         return res.status(status).json(json ?? errorMessage({ message: 'No se pudo iniciar sesión' }));
     } catch (e) {
         return res.status(502).json(errorMessage({ message: 'No se pudo contactar a fichada', extra: { error: e.message } }));
@@ -96,11 +68,13 @@ export async function setPin(req, res) {
     }
 }
 
-// GET /auth/me — perfil + ajustes locales del usuario (esto sí es propio de recordatorios).
+// GET /auth/me — usuario (del JWT de fichada) + ajustes locales de recordatorios.
 export async function me(req, res) {
     try {
         const settings = await getOrCreateSettings(req.user.id);
-        return res.status(200).json(successMessage({ extra: { data: { profile: req.profile, settings } } }));
+        return res.status(200).json(successMessage({
+            extra: { data: { user: { id: req.user.id, email: req.user.email || null }, settings } },
+        }));
     } catch (error) {
         return res.status(500).json(errorMessage({ message: 'Error al obtener el perfil', extra: { error: error.message } }));
     }
