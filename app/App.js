@@ -18,6 +18,7 @@ import { syncDevice } from './src/device';
 import * as localNotifs from './src/notifications';
 import { saveWidgetData, refreshWidget } from './src/widget/data';
 import { todayISO } from './src/helpers';
+import * as haptics from './src/haptics';
 
 import { EmailScreen, PasswordScreen, PinScreen } from './src/screens/AccessScreens';
 import { HoyScreen } from './src/screens/HoyScreen';
@@ -239,6 +240,7 @@ export default function App() {
     // ─── Acciones de tareas (UI OPTIMISTA: feedback inmediato + animación) ─────
     const onToggle = (task) => {
         const done = task.status !== 'done';
+        (done ? haptics.success : haptics.tap)();
         animate();
         setToday((prev) => {
             const all = [...prev.pending, ...prev.done].map((t) =>
@@ -252,6 +254,7 @@ export default function App() {
     };
 
     const onDelete = (task) => {
+        haptics.tapMedium();
         animate();
         setToday((prev) => {
             const all = [...prev.pending, ...prev.done].filter((t) => t.id !== task.id);
@@ -263,6 +266,7 @@ export default function App() {
     };
 
     const onSnooze = (task) => {
+        haptics.tap();
         animate();
         setToday((prev) => {
             const all = [...prev.pending, ...prev.done].filter((t) => t.id !== task.id);
@@ -275,6 +279,7 @@ export default function App() {
 
     const onSubmitAdd = (text, task_date) => {
         setAddOpen(false);
+        haptics.tap();
         const isToday = !task_date || task_date === todayISO();
         if (isToday) {
             animate();
@@ -299,6 +304,7 @@ export default function App() {
 
     // ─── Revisión de inicio del día (optimista) ────────────────────────────────
     const stepCarryover = (id, apiCall) => {
+        haptics.tap();
         animate();
         setCarryover((prev) => {
             const next = prev.filter((t) => t.id !== id);
@@ -311,6 +317,7 @@ export default function App() {
     const onReviewDone = (id) => stepCarryover(id, () => api.setTaskStatus(id, 'done'));
     const onReviewDelete = (id) => stepCarryover(id, () => api.deleteTask(id));
     const onAllToday = () => {
+        haptics.success();
         animate();
         setCarryover([]); setReviewOpen(false);
         guard(() => api.allCarryoverToday()).then(reconcileToday);
