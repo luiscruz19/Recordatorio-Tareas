@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, ActivityIndicator, Linking } from 'react-native';
+import { View, ActivityIndicator, Linking, LayoutAnimation, UIManager, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
@@ -26,7 +26,25 @@ import { AgregarSheet } from './src/screens/AgregarSheet';
 import { RevisionScreen } from './src/screens/RevisionScreen';
 import { NotisSheet } from './src/screens/NotisSheet';
 
-// Handler de cómo se muestran las push con la app abierta (fuera de Expo Go).
+// Animaciones de layout (entrar/salir/reordenar) suaves en toda la app.
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+function animate() {
+    try {
+        LayoutAnimation.configureNext(
+            LayoutAnimation.create(240, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity)
+        );
+    } catch { /* no-op */ }
+}
+
+// Recalcula pendientes/hechas/contadores desde una lista plana.
+function splitToday(prev, all) {
+    const pending = all.filter((t) => t.status === 'pending');
+    const done = all.filter((t) => t.status === 'done');
+    return { ...prev, pending, done, pending_count: pending.length, done_count: done.length };
+}
+
 const IS_EXPO_GO = Constants.executionEnvironment === 'storeClient';
 if (!IS_EXPO_GO) {
     try {
@@ -55,12 +73,13 @@ export default function App() {
     const [busy, setBusy] = useState(false);
 
     const [today, setToday] = useState(EMPTY_TODAY);
+    const [loaded, setLoaded] = useState(false);     // primer load de Hoy completado
     const [carryover, setCarryover] = useState([]);
     const [settings, setSettings] = useState(null);
     const [notis, setNotis] = useState([]);
     const [notifStatus, setNotifStatus] = useState('undetermined');
 
-    const [screen, setScreen] = useState('hoy');         // hoy | ajustes
+    const [screen, setScreen] = useState('hoy');
     const [addOpen, setAddOpen] = useState(false);
     const [reviewOpen, setReviewOpen] = useState(false);
     const [notisOpen, setNotisOpen] = useState(false);
@@ -68,8 +87,32 @@ export default function App() {
 
     const unread = notis.filter((n) => !n.read_at).length;
 
-    // Lleva a la pantalla de ingreso correcta: si este teléfono ya usó una cuenta con PIN,
-    // va directo a pedir el PIN; si no, pide el email.
+    const guard = useCallback(async (fn) => {
+        try { return await fn(); }
+        catch (e) {
+            if (e?.status === 401) { await api.clearToken(); await goToLogin(); }
+            return null;
+        }
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const syncSideEffects = useCallback((td, set) => {
+        const pending = td?.pending || [];
+        const done = td?.done || [];
+        saveWidgetData({
+            pending: pending.map((t) => ({ id: t.id, text: t.text })),
+            done: done.length,
+            total: pending.length + done.length,
+        }).then(refreshWidget).catch(() => {});
+        if (set) localNotifs.reschedule(set, pending.length);
+    }, []);
+
+    // Reconciliación silenciosa con el servidor (sin spinner ni animación): trae la verdad
+    // luego de una acción optimista (ids reales, orden, etc.).
+    const reconcileToday = useCallback(async () => {
+        const r = await guard(() => api.getToday());
+        if (r?.data) { setToday(r.data); syncSideEffects(r.data, settings); }
+    }, [guard, settings, syncSideEffects]);
+
     const goToLogin = useCallback(async () => {
         const last = await getItem(EMAIL_KEY);
         if (!last) { setSession('emailEntry'); return; }
@@ -82,40 +125,14 @@ export default function App() {
         }
     }, []);
 
-    // Envuelve llamadas al api: si vuelve 401, vuelve al login.
-    const guard = useCallback(async (fn) => {
-        try { return await fn(); }
-        catch (e) {
-            if (e?.status === 401) { await api.clearToken(); await goToLogin(); }
-            return null;
-        }
-    }, [goToLogin]);
-
-    // Efectos colaterales tras cambios en "hoy": widget + notificaciones locales.
-    const syncSideEffects = useCallback((td, set) => {
-        const pending = td?.pending || [];
-        const done = td?.done || [];
-        saveWidgetData({
-            pending: pending.map((t) => ({ id: t.id, text: t.text })),
-            done: done.length,
-            total: pending.length + done.length,
-        }).then(refreshWidget).catch(() => {});
-        if (set) localNotifs.reschedule(set, pending.length);
-    }, []);
-
-    const loadToday = useCallback(async (set) => {
-        const r = await guard(() => api.getToday());
-        if (r?.data) { setToday(r.data); syncSideEffects(r.data, set || settings); }
-        return r?.data;
-    }, [guard, settings, syncSideEffects]);
-
     const loadAll = useCallback(async () => {
         const me = await guard(() => api.getMe());
         const set = me?.data?.settings || null;
         if (set) setSettings(set);
 
         const td = await guard(() => api.getToday());
-        if (td?.data) setToday(td.data);
+        if (td?.data) { setToday(td.data); syncSideEffects(td.data, set); }
+        setLoaded(true);
 
         const co = await guard(() => api.getCarryover());
         setCarryover(co?.data || []);
@@ -123,12 +140,11 @@ export default function App() {
         const nt = await guard(() => api.listNotifications());
         setNotis(nt?.data || []);
 
-        if (td?.data) syncSideEffects(td.data, set);
         if ((co?.data || []).length > 0) setReviewOpen(true);
         localNotifs.getPermissionStatus().then(setNotifStatus);
     }, [guard, syncSideEffects]);
 
-    // Boot: ¿hay sesión válida?
+    // Boot
     useEffect(() => {
         (async () => {
             await localNotifs.setupCategory();
@@ -142,12 +158,11 @@ export default function App() {
         })();
     }, [goToLogin]);
 
-    // Al entrar a "active": cargar todo + registrar dispositivo.
     useEffect(() => {
-        if (session === 'active') { loadAll(); syncDevice(); }
+        if (session === 'active') { setLoaded(false); loadAll(); syncDevice(); }
     }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Acciones desde la push (Marcar hecha / Posponer) — best-effort sobre la 1ª pendiente.
+    // Acciones desde la push (Marcar hecha / Posponer).
     useEffect(() => {
         if (IS_EXPO_GO || session !== 'active') return;
         let sub;
@@ -156,15 +171,15 @@ export default function App() {
             sub = N.addNotificationResponseReceivedListener(async (resp) => {
                 const action = resp?.actionIdentifier;
                 const first = (today.pending || [])[0];
-                if (action === 'DONE' && first) await guard(() => api.setTaskStatus(first.id, 'done'));
-                else if (action === 'SNOOZE' && first) await guard(() => api.snoozeTask(first.id));
-                await loadToday();
+                if (action === 'DONE' && first) { await guard(() => api.setTaskStatus(first.id, 'done')); }
+                else if (action === 'SNOOZE' && first) { await guard(() => api.snoozeTask(first.id)); }
+                await reconcileToday();
             });
         } catch { /* no-op */ }
         return () => { try { sub && sub.remove(); } catch { /* no-op */ } };
-    }, [session, today.pending, guard, loadToday]);
+    }, [session, today.pending, guard, reconcileToday]);
 
-    // Deep links del widget: recordatorios://add abre el formulario de nueva tarea.
+    // Deep links del widget: recordatorios://add abre el formulario.
     useEffect(() => {
         const handle = (url) => {
             if (!url) return;
@@ -179,7 +194,7 @@ export default function App() {
         if (session === 'active' && pendingAdd) { setAddOpen(true); setPendingAdd(false); }
     }, [session, pendingAdd]);
 
-    // ─── Auth (email → PIN, calco del flujo de fichada) ───────────────────────
+    // ─── Auth (email → PIN, delegado a fichada) ───────────────────────────────
     const onContinueEmail = async (em) => {
         const e = String(em || '').trim().toLowerCase();
         if (!e) { setAuthError('Ingresá tu email'); return; }
@@ -221,17 +236,56 @@ export default function App() {
 
     const onBackEmail = () => { setAuthError(null); setSession('emailEntry'); };
 
-    // ─── Handlers de la app ────────────────────────────────────────────────────
-    const onToggle = async (task) => {
-        await guard(() => api.setTaskStatus(task.id, task.status === 'done' ? 'pending' : 'done'));
-        await loadToday();
+    // ─── Acciones de tareas (UI OPTIMISTA: feedback inmediato + animación) ─────
+    const onToggle = (task) => {
+        const done = task.status !== 'done';
+        animate();
+        setToday((prev) => {
+            const all = [...prev.pending, ...prev.done].map((t) =>
+                t.id === task.id ? { ...t, status: done ? 'done' : 'pending', done_at: done ? new Date().toISOString() : null } : t
+            );
+            const next = splitToday(prev, all);
+            syncSideEffects(next, settings);
+            return next;
+        });
+        guard(() => api.setTaskStatus(task.id, done ? 'done' : 'pending')).then(reconcileToday);
     };
-    const onSnooze = async (task) => { await guard(() => api.snoozeTask(task.id)); await loadToday(); };
-    const onDelete = async (task) => { await guard(() => api.deleteTask(task.id)); await loadToday(); };
-    const onSubmitAdd = async (text, task_date) => {
+
+    const onDelete = (task) => {
+        animate();
+        setToday((prev) => {
+            const all = [...prev.pending, ...prev.done].filter((t) => t.id !== task.id);
+            const next = splitToday(prev, all);
+            syncSideEffects(next, settings);
+            return next;
+        });
+        guard(() => api.deleteTask(task.id)).then(reconcileToday);
+    };
+
+    const onSnooze = (task) => {
+        animate();
+        setToday((prev) => {
+            const all = [...prev.pending, ...prev.done].filter((t) => t.id !== task.id);
+            const next = splitToday(prev, all);
+            syncSideEffects(next, settings);
+            return next;
+        });
+        guard(() => api.snoozeTask(task.id)).then(reconcileToday);
+    };
+
+    const onSubmitAdd = (text, task_date) => {
         setAddOpen(false);
-        await guard(() => api.createTask(text, task_date));
-        await loadToday();
+        const isToday = !task_date || task_date === todayISO();
+        if (isToday) {
+            animate();
+            setToday((prev) => {
+                const temp = { id: `tmp-${Date.now()}`, text, status: 'pending', task_date: todayISO() };
+                const next = splitToday(prev, [...prev.pending, ...prev.done, temp]);
+                syncSideEffects(next, settings);
+                return next;
+            });
+        }
+        guard(() => api.createTask(text, task_date)).then(reconcileToday);
     };
 
     const onChangeSettings = async (patch) => {
@@ -243,17 +297,24 @@ export default function App() {
         syncSideEffects(today, eff);
     };
 
-    const afterReviewStep = (id) => {
+    // ─── Revisión de inicio del día (optimista) ────────────────────────────────
+    const stepCarryover = (id, apiCall) => {
+        animate();
         setCarryover((prev) => {
             const next = prev.filter((t) => t.id !== id);
-            if (next.length === 0) { setReviewOpen(false); loadToday(); }
+            if (next.length === 0) { setReviewOpen(false); }
             return next;
         });
+        guard(apiCall).then(() => { reconcileToday(); });
     };
-    const onReviewToday = async (id) => { await guard(() => api.updateTask(id, { task_date: todayISO() })); afterReviewStep(id); };
-    const onReviewDone = async (id) => { await guard(() => api.setTaskStatus(id, 'done')); afterReviewStep(id); };
-    const onReviewDelete = async (id) => { await guard(() => api.deleteTask(id)); afterReviewStep(id); };
-    const onAllToday = async () => { await guard(() => api.allCarryoverToday()); setCarryover([]); setReviewOpen(false); await loadToday(); };
+    const onReviewToday = (id) => stepCarryover(id, () => api.updateTask(id, { task_date: todayISO() }));
+    const onReviewDone = (id) => stepCarryover(id, () => api.setTaskStatus(id, 'done'));
+    const onReviewDelete = (id) => stepCarryover(id, () => api.deleteTask(id));
+    const onAllToday = () => {
+        animate();
+        setCarryover([]); setReviewOpen(false);
+        guard(() => api.allCarryoverToday()).then(reconcileToday);
+    };
 
     const onSimulateReview = async () => {
         const co = await guard(() => api.getCarryover());
@@ -267,16 +328,17 @@ export default function App() {
         const nt = await guard(() => api.listNotifications());
         setNotis(nt?.data || []);
     };
-    const onMarkAllRead = async () => {
+    const onMarkAllRead = () => {
         const ids = notis.filter((n) => !n.read_at).map((n) => n.id);
-        for (const id of ids) await guard(() => api.markNotificationRead(id));
-        const nt = await guard(() => api.listNotifications());
-        setNotis(nt?.data || []);
+        if (!ids.length) return;
+        const now = new Date().toISOString();
+        setNotis((prev) => prev.map((n) => (n.read_at ? n : { ...n, read_at: now })));
+        ids.forEach((id) => { guard(() => api.markNotificationRead(id)); });
     };
 
-    // Pull-to-refresh de la lista de Hoy.
     const onRefresh = async () => {
-        await loadToday();
+        const r = await guard(() => api.getToday());
+        if (r?.data) { setToday(r.data); syncSideEffects(r.data, settings); }
         const nt = await guard(() => api.listNotifications());
         setNotis(nt?.data || []);
     };
@@ -311,6 +373,7 @@ export default function App() {
                     {screen === 'hoy' ? (
                         <HoyScreen
                             data={today}
+                            loading={!loaded}
                             unread={unread}
                             onToggle={onToggle}
                             onSnooze={onSnooze}

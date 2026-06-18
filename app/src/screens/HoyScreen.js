@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView, RefreshControl } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, Pressable, ScrollView, RefreshControl, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bell, Settings, Plus, Check, Clock3, Trash2 } from 'lucide-react-native';
@@ -7,7 +7,7 @@ import { C, F, R, GRAD_HEADER, GRAD_FAB, shadowHeader, shadowCard, shadowFab } f
 import { Ring } from '../components';
 import { fmtDateLong } from '../helpers';
 
-export function HoyScreen({ data, onToggle, onSnooze, onDelete, onAdd, onOpenSettings, onOpenNotis, onRefresh, unread = 0 }) {
+export function HoyScreen({ data, loading = false, onToggle, onSnooze, onDelete, onAdd, onOpenSettings, onOpenNotis, onRefresh, unread = 0 }) {
     const insets = useSafeAreaInsets();
     const [refreshing, setRefreshing] = useState(false);
     const doRefresh = async () => {
@@ -20,7 +20,8 @@ export function HoyScreen({ data, onToggle, onSnooze, onDelete, onAdd, onOpenSet
     const pct = total > 0 ? Math.round((done.length / total) * 100) : 0;
 
     let progressLabel;
-    if (total === 0) progressLabel = 'Sin tareas para hoy';
+    if (loading) progressLabel = 'Cargando tus tareas…';
+    else if (total === 0) progressLabel = 'Sin tareas para hoy';
     else if (pending.length === 0) progressLabel = '¡Completaste todo!';
     else progressLabel = `Te ${pending.length === 1 ? 'queda' : 'quedan'} ${pending.length} ${pending.length === 1 ? 'tarea' : 'tareas'} por hacer`;
 
@@ -69,7 +70,9 @@ export function HoyScreen({ data, onToggle, onSnooze, onDelete, onAdd, onOpenSet
                 showsVerticalScrollIndicator={false}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={doRefresh} tintColor={C.accent} colors={[C.accent]} />}
             >
-                {pending.length > 0 && (
+                {loading && <SkeletonList />}
+
+                {!loading && pending.length > 0 && (
                     <>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 6, paddingBottom: 12 }}>
                             <Text style={sectionLabel}>Pendientes</Text>
@@ -83,7 +86,7 @@ export function HoyScreen({ data, onToggle, onSnooze, onDelete, onAdd, onOpenSet
                     </>
                 )}
 
-                {pending.length === 0 && (
+                {!loading && pending.length === 0 && (
                     <View style={{ alignItems: 'center', paddingTop: 56, paddingHorizontal: 24 }}>
                         <LinearGradient colors={[C.accentTint, '#DCE3F1']} style={{ width: 84, height: 84, borderRadius: 42, alignItems: 'center', justifyContent: 'center', marginBottom: 22, ...shadowCard }}>
                             <Check size={38} color={C.accent} strokeWidth={2.4} />
@@ -95,7 +98,7 @@ export function HoyScreen({ data, onToggle, onSnooze, onDelete, onAdd, onOpenSet
                     </View>
                 )}
 
-                {done.length > 0 && (
+                {!loading && done.length > 0 && (
                     <View style={{ marginTop: pending.length > 0 ? 26 : 34 }}>
                         <Text style={[sectionLabel, { paddingHorizontal: 6, paddingBottom: 12 }]}>Completadas</Text>
                         {done.map((t) => (
@@ -154,6 +157,31 @@ function DoneRow({ task, onToggle, onDelete }) {
                 <Trash2 size={18} color="#AFB7C6" strokeWidth={1.8} />
             </Pressable>
         </View>
+    );
+}
+
+function SkeletonList() {
+    const op = useRef(new Animated.Value(0.5)).current;
+    useEffect(() => {
+        const loop = Animated.loop(Animated.sequence([
+            Animated.timing(op, { toValue: 1, duration: 650, useNativeDriver: true }),
+            Animated.timing(op, { toValue: 0.5, duration: 650, useNativeDriver: true }),
+        ]));
+        loop.start();
+        return () => loop.stop();
+    }, [op]);
+    return (
+        <Animated.View style={{ opacity: op }}>
+            <View style={{ height: 13, width: 110, borderRadius: 7, backgroundColor: '#DDE3EE', marginLeft: 6, marginBottom: 16 }} />
+            {[0, 1, 2, 3].map((i) => (
+                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 13, backgroundColor: C.surface, borderRadius: R.lg, paddingVertical: 19, paddingHorizontal: 16, marginBottom: 11, ...shadowCard }}>
+                    <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#E3E8F1' }} />
+                    <View style={{ flex: 1 }}>
+                        <View style={{ height: 12, borderRadius: 6, backgroundColor: '#E8ECF3', width: i % 2 ? '64%' : '88%' }} />
+                    </View>
+                </View>
+            ))}
+        </Animated.View>
     );
 }
 
