@@ -13,7 +13,7 @@ const BASIC = 'Basic ' + Buffer.from(`${AUTHORIZATION.USER}:${AUTHORIZATION.PASS
 async function upsertProfile(u) {
     const userId = u.id || u.user_id;
     if (!userId) return;
-    const email = u.email || null;
+    const email = (u.email || '').toLowerCase().trim() || null;
     const name = u.name
         || [u.first_name, u.last_name].filter(Boolean).join(' ').trim()
         || email || 'Usuario';

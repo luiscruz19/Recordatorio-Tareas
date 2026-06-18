@@ -13,12 +13,13 @@ import {
 
 import { C } from './src/theme';
 import * as api from './src/api';
+import { getItem, setItem } from './src/storage';
 import { syncDevice } from './src/device';
 import * as localNotifs from './src/notifications';
 import { saveWidgetData, refreshWidget } from './src/widget/data';
 import { todayISO } from './src/helpers';
 
-import { LoginScreen } from './src/screens/AccessScreens';
+import { EmailScreen, PasswordScreen, PinScreen } from './src/screens/AccessScreens';
 import { HoyScreen } from './src/screens/HoyScreen';
 import { AjustesScreen } from './src/screens/AjustesScreen';
 import { AgregarSheet } from './src/screens/AgregarSheet';
@@ -38,6 +39,7 @@ if (!IS_EXPO_GO) {
     } catch { /* no-op */ }
 }
 
+const EMAIL_KEY = 'recordatorios_email';
 const EMPTY_TODAY = { pending: [], done: [], pending_count: 0, done_count: 0, date: todayISO() };
 
 export default function App() {
@@ -45,9 +47,12 @@ export default function App() {
         SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold,
     });
 
-    const [session, setSession] = useState('boot');     // boot | login | active
-    const [loginErr, setLoginErr] = useState(null);
-    const [loginLoading, setLoginLoading] = useState(false);
+    // boot | emailEntry | loginPassword | createPin | confirmPin | loginPin | active
+    const [session, setSession] = useState('boot');
+    const [email, setEmail] = useState('');
+    const [pinDraft, setPinDraft] = useState('');
+    const [authError, setAuthError] = useState(null);
+    const [busy, setBusy] = useState(false);
 
     const [today, setToday] = useState(EMPTY_TODAY);
     const [carryover, setCarryover] = useState([]);
@@ -62,14 +67,28 @@ export default function App() {
 
     const unread = notis.filter((n) => !n.read_at).length;
 
-    // Envuelve llamadas al api: si vuelve 401, cierra sesión.
+    // Lleva a la pantalla de ingreso correcta: si este teléfono ya usó una cuenta con PIN,
+    // va directo a pedir el PIN; si no, pide el email.
+    const goToLogin = useCallback(async () => {
+        const last = await getItem(EMAIL_KEY);
+        if (!last) { setSession('emailEntry'); return; }
+        setEmail(last);
+        try {
+            const res = await api.hasPin(last);
+            setSession(res?.has_pin ? 'loginPin' : 'loginPassword');
+        } catch {
+            setSession('emailEntry');
+        }
+    }, []);
+
+    // Envuelve llamadas al api: si vuelve 401, vuelve al login.
     const guard = useCallback(async (fn) => {
         try { return await fn(); }
         catch (e) {
-            if (e?.status === 401) { await api.clearToken(); setSession('login'); }
+            if (e?.status === 401) { await api.clearToken(); await goToLogin(); }
             return null;
         }
-    }, []);
+    }, [goToLogin]);
 
     // Efectos colaterales tras cambios en "hoy": widget + notificaciones locales.
     const syncSideEffects = useCallback((td, set) => {
@@ -112,13 +131,15 @@ export default function App() {
     useEffect(() => {
         (async () => {
             await localNotifs.setupCategory();
-            const tok = await api.loadToken();
-            if (!tok) { setSession('login'); return; }
-            const me = await api.getMe().catch(() => null);
-            if (!me) { await api.clearToken(); setSession('login'); return; }
-            setSession('active');
+            const tk = await api.loadToken();
+            if (tk) {
+                const me = await api.getMe().catch(() => null);
+                if (me) { setSession('active'); return; }
+                await api.clearToken();
+            }
+            await goToLogin();
         })();
-    }, []);
+    }, [goToLogin]);
 
     // Al entrar a "active": cargar todo + registrar dispositivo.
     useEffect(() => {
@@ -142,14 +163,49 @@ export default function App() {
         return () => { try { sub && sub.remove(); } catch { /* no-op */ } };
     }, [session, today.pending, guard, loadToday]);
 
-    // ─── Handlers ────────────────────────────────────────────────────────────
-    const onLogin = async (email, password) => {
-        setLoginErr(null); setLoginLoading(true);
-        try { await api.login(email, password); setSession('active'); }
-        catch (e) { setLoginErr(e?.message || 'No se pudo iniciar sesión'); }
-        finally { setLoginLoading(false); }
+    // ─── Auth (email → PIN, calco del flujo de fichada) ───────────────────────
+    const onContinueEmail = async (em) => {
+        const e = String(em || '').trim().toLowerCase();
+        if (!e) { setAuthError('Ingresá tu email'); return; }
+        setEmail(e); setAuthError(null); setBusy(true);
+        try {
+            await setItem(EMAIL_KEY, e);
+            const res = await api.hasPin(e);
+            setSession(res?.has_pin ? 'loginPin' : 'loginPassword');
+        } catch {
+            setAuthError('No se pudo conectar con el servidor');
+        } finally {
+            setBusy(false);
+        }
     };
 
+    const onLoginPassword = async (password) => {
+        setAuthError(null); setBusy(true);
+        try { await api.login(email, password); setSession('createPin'); }
+        catch (e) { setAuthError(e?.message || 'No se pudo iniciar sesión'); }
+        finally { setBusy(false); }
+    };
+
+    const onPin = async (mode, value) => {
+        if (mode === 'create') {
+            setPinDraft(value); setAuthError(null); setSession('confirmPin');
+        } else if (mode === 'confirm') {
+            if (value !== pinDraft) { setAuthError('El PIN no coincide'); setSession('createPin'); return; }
+            setBusy(true);
+            try { await api.setPinRemote(value); setAuthError(null); setSession('active'); }
+            catch { setAuthError('No se pudo guardar el PIN'); setSession('createPin'); }
+            finally { setBusy(false); }
+        } else if (mode === 'login') {
+            setBusy(true);
+            try { await api.loginPin(email, value); setAuthError(null); setSession('active'); }
+            catch (e) { setAuthError(e?.message || 'PIN incorrecto'); }
+            finally { setBusy(false); }
+        }
+    };
+
+    const onBackEmail = () => { setAuthError(null); setSession('emailEntry'); };
+
+    // ─── Handlers de la app ────────────────────────────────────────────────────
     const onToggle = async (task) => {
         await guard(() => api.setTaskStatus(task.id, task.status === 'done' ? 'pending' : 'done'));
         await loadToday();
@@ -171,7 +227,6 @@ export default function App() {
         syncSideEffects(today, eff);
     };
 
-    // Revisión de inicio del día
     const afterReviewStep = (id) => {
         setCarryover((prev) => {
             const next = prev.filter((t) => t.id !== id);
@@ -212,12 +267,23 @@ export default function App() {
         );
     }
 
+    let authScreen = null;
+    if (session === 'emailEntry') {
+        authScreen = <EmailScreen onContinue={onContinueEmail} busy={busy} error={authError} initialEmail={email} />;
+    } else if (session === 'loginPassword') {
+        authScreen = <PasswordScreen email={email} onLogin={onLoginPassword} onBack={onBackEmail} error={authError} busy={busy} />;
+    } else if (session === 'createPin') {
+        authScreen = <PinScreen mode="create" onComplete={(v) => onPin('create', v)} error={authError} />;
+    } else if (session === 'confirmPin') {
+        authScreen = <PinScreen mode="confirm" onComplete={(v) => onPin('confirm', v)} error={authError} />;
+    } else if (session === 'loginPin') {
+        authScreen = <PinScreen mode="login" email={email} onComplete={(v) => onPin('login', v)} onBack={onBackEmail} error={authError} />;
+    }
+
     return (
         <SafeAreaProvider>
             <StatusBar style={session === 'active' ? 'light' : 'dark'} />
-            {session === 'login' ? (
-                <LoginScreen onLogin={onLogin} loading={loginLoading} error={loginErr} />
-            ) : (
+            {session === 'active' ? (
                 <View style={{ flex: 1, backgroundColor: C.bg }}>
                     {screen === 'hoy' ? (
                         <HoyScreen
@@ -251,7 +317,7 @@ export default function App() {
                         onAllToday={onAllToday}
                     />
                 </View>
-            )}
+            ) : authScreen}
         </SafeAreaProvider>
     );
 }
