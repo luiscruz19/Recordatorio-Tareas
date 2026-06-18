@@ -1,15 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, Pressable, Modal, Keyboard, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Plus } from 'lucide-react-native';
 import { C, F, R } from '../theme';
 import { fmtDateShort, toISO, todayISO } from '../helpers';
 
+// Altura del teclado (0 cuando está cerrado) para levantar la hoja por encima.
+function useKeyboardHeight() {
+    const [h, setH] = useState(0);
+    useEffect(() => {
+        const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+        const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+        const s = Keyboard.addListener(showEvt, (e) => setH(e.endCoordinates?.height || 0));
+        const hd = Keyboard.addListener(hideEvt, () => setH(0));
+        return () => { s.remove(); hd.remove(); };
+    }, []);
+    return h;
+}
+
 // Bottom sheet para agregar una tarea: texto + Para (Hoy / Otro día) + fecha opcional.
 export function AgregarSheet({ visible, onClose, onSubmit }) {
+    const insets = useSafeAreaInsets();
+    const kb = useKeyboardHeight();
     const [text, setText] = useState('');
     const [future, setFuture] = useState(false);
-    const [date, setDate] = useState(null); // Date
+    const [date, setDate] = useState(null);
     const [showPicker, setShowPicker] = useState(false);
 
     useEffect(() => {
@@ -17,6 +33,8 @@ export function AgregarSheet({ visible, onClose, onSubmit }) {
     }, [visible]);
 
     const canSubmit = !!text.trim();
+
+    const close = () => { Keyboard.dismiss(); onClose(); };
 
     const submit = () => {
         if (!canSubmit) return;
@@ -26,70 +44,74 @@ export function AgregarSheet({ visible, onClose, onSubmit }) {
             task_date = toISO(d);
             if (task_date <= todayISO()) task_date = toISO(new Date(Date.now() + 86400000));
         }
+        Keyboard.dismiss();
         onSubmit(text.trim(), task_date);
     };
 
     return (
-        <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+        <Modal visible={visible} transparent animationType="slide" onRequestClose={close} statusBarTranslucent navigationBarTranslucent>
             <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-                <Pressable style={{ position: 'absolute', inset: 0, backgroundColor: C.overlay }} onPress={onClose} />
-                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                    <View style={{ backgroundColor: C.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 22, paddingTop: 12, paddingBottom: 30 }}>
-                        <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: C.bgTint2, alignSelf: 'center', marginBottom: 20 }} />
-                        <Text style={{ fontFamily: F.bold, fontSize: 22, color: C.ink, letterSpacing: -0.3 }}>Nueva tarea</Text>
+                <Pressable style={{ position: 'absolute', inset: 0, backgroundColor: C.overlay }} onPress={close} />
+                <View style={{
+                    backgroundColor: C.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30,
+                    paddingHorizontal: 22, paddingTop: 12,
+                    marginBottom: kb,
+                    paddingBottom: kb > 0 ? 18 : 24 + insets.bottom,
+                }}>
+                    <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: C.bgTint2, alignSelf: 'center', marginBottom: 20 }} />
+                    <Text style={{ fontFamily: F.bold, fontSize: 22, color: C.ink, letterSpacing: -0.3 }}>Nueva tarea</Text>
 
-                        <TextInput
-                            value={text} onChangeText={setText}
-                            placeholder="¿Qué tenés que hacer?" placeholderTextColor={C.muted2}
-                            multiline
-                            style={{
-                                marginTop: 16, padding: 16, fontFamily: F.med, fontSize: 17, color: C.ink, lineHeight: 23,
-                                backgroundColor: C.bg, borderRadius: R.md, minHeight: 76, textAlignVertical: 'top',
-                            }}
-                        />
+                    <TextInput
+                        value={text} onChangeText={setText}
+                        placeholder="¿Qué tenés que hacer?" placeholderTextColor={C.muted2}
+                        multiline autoFocus
+                        style={{
+                            marginTop: 16, padding: 16, fontFamily: F.med, fontSize: 17, color: C.ink, lineHeight: 23,
+                            backgroundColor: C.bg, borderRadius: R.md, minHeight: 76, textAlignVertical: 'top',
+                        }}
+                    />
 
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13, marginTop: 18 }}>
-                            <Text style={{ fontFamily: F.semi, fontSize: 14, color: C.ink3 }}>Para</Text>
-                            <View style={{ flex: 1, flexDirection: 'row', gap: 6, backgroundColor: C.inputBg, borderRadius: R.md, padding: 5 }}>
-                                <DaySeg label="Hoy" active={!future} onPress={() => setFuture(false)} />
-                                <DaySeg label="Otro día" active={future} onPress={() => setFuture(true)} />
-                            </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13, marginTop: 18 }}>
+                        <Text style={{ fontFamily: F.semi, fontSize: 14, color: C.ink3 }}>Para</Text>
+                        <View style={{ flex: 1, flexDirection: 'row', gap: 6, backgroundColor: C.inputBg, borderRadius: R.md, padding: 5 }}>
+                            <DaySeg label="Hoy" active={!future} onPress={() => setFuture(false)} />
+                            <DaySeg label="Otro día" active={future} onPress={() => setFuture(true)} />
                         </View>
-
-                        {future && (
-                            <Pressable
-                                onPress={() => setShowPicker(true)}
-                                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 13, paddingHorizontal: 16, paddingVertical: 14, backgroundColor: C.bg, borderRadius: R.md }}
-                            >
-                                <Text style={{ fontFamily: F.med, fontSize: 16, color: C.ink }}>Fecha</Text>
-                                <Text style={{ fontFamily: F.semi, fontSize: 16, color: C.accent }}>
-                                    {date ? fmtDateShort(toISO(date)) : 'Mañana'}
-                                </Text>
-                            </Pressable>
-                        )}
-
-                        {showPicker && (
-                            <DateTimePicker
-                                value={date || new Date(Date.now() + 86400000)}
-                                mode="date"
-                                minimumDate={new Date(Date.now() + 86400000)}
-                                onChange={(e, d) => { setShowPicker(Platform.OS === 'ios'); if (d) setDate(d); }}
-                            />
-                        )}
-
-                        <Pressable
-                            onPress={submit} disabled={!canSubmit}
-                            style={({ pressed }) => ({
-                                marginTop: 22, height: 54, borderRadius: R.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-                                backgroundColor: canSubmit ? C.accent : '#E8EBF1',
-                                transform: [{ scale: pressed && canSubmit ? 0.98 : 1 }],
-                            })}
-                        >
-                            <Plus size={20} color={canSubmit ? '#fff' : '#B0B7C5'} strokeWidth={2.6} />
-                            <Text style={{ fontFamily: F.semi, fontSize: 17, color: canSubmit ? '#fff' : '#B0B7C5' }}>Agregar tarea</Text>
-                        </Pressable>
                     </View>
-                </KeyboardAvoidingView>
+
+                    {future && (
+                        <Pressable
+                            onPress={() => { Keyboard.dismiss(); setShowPicker(true); }}
+                            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 13, paddingHorizontal: 16, paddingVertical: 14, backgroundColor: C.bg, borderRadius: R.md }}
+                        >
+                            <Text style={{ fontFamily: F.med, fontSize: 16, color: C.ink }}>Fecha</Text>
+                            <Text style={{ fontFamily: F.semi, fontSize: 16, color: C.accent }}>
+                                {date ? fmtDateShort(toISO(date)) : 'Mañana'}
+                            </Text>
+                        </Pressable>
+                    )}
+
+                    {showPicker && (
+                        <DateTimePicker
+                            value={date || new Date(Date.now() + 86400000)}
+                            mode="date"
+                            minimumDate={new Date(Date.now() + 86400000)}
+                            onChange={(e, d) => { setShowPicker(Platform.OS === 'ios'); if (d) setDate(d); }}
+                        />
+                    )}
+
+                    <Pressable
+                        onPress={submit} disabled={!canSubmit}
+                        style={({ pressed }) => ({
+                            marginTop: 22, height: 54, borderRadius: R.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+                            backgroundColor: canSubmit ? C.accent : '#E8EBF1',
+                            transform: [{ scale: pressed && canSubmit ? 0.98 : 1 }],
+                        })}
+                    >
+                        <Plus size={20} color={canSubmit ? '#fff' : '#B0B7C5'} strokeWidth={2.6} />
+                        <Text style={{ fontFamily: F.semi, fontSize: 17, color: canSubmit ? '#fff' : '#B0B7C5' }}>Agregar tarea</Text>
+                    </Pressable>
+                </View>
             </View>
         </Modal>
     );

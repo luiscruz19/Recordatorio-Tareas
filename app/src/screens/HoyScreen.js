@@ -1,12 +1,19 @@
-import React from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Pressable, ScrollView, RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bell, Settings, Plus, Check, Clock3, Trash2 } from 'lucide-react-native';
 import { C, F, R, GRAD_HEADER, GRAD_FAB, shadowHeader, shadowCard, shadowFab } from '../theme';
 import { Ring } from '../components';
 import { fmtDateLong } from '../helpers';
 
-export function HoyScreen({ data, onToggle, onSnooze, onDelete, onAdd, onOpenSettings, onOpenNotis, unread = 0 }) {
+export function HoyScreen({ data, onToggle, onSnooze, onDelete, onAdd, onOpenSettings, onOpenNotis, onRefresh, unread = 0 }) {
+    const insets = useSafeAreaInsets();
+    const [refreshing, setRefreshing] = useState(false);
+    const doRefresh = async () => {
+        setRefreshing(true);
+        try { await onRefresh?.(); } finally { setRefreshing(false); }
+    };
     const pending = data?.pending || [];
     const done = data?.done || [];
     const total = pending.length + done.length;
@@ -22,7 +29,7 @@ export function HoyScreen({ data, onToggle, onSnooze, onDelete, onAdd, onOpenSet
             {/* HEADER */}
             <LinearGradient
                 colors={GRAD_HEADER} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={{ paddingTop: 52, paddingHorizontal: 22, paddingBottom: 30, borderBottomLeftRadius: 32, borderBottomRightRadius: 32, overflow: 'hidden', ...shadowHeader }}
+                style={{ paddingTop: insets.top + 14, paddingHorizontal: 22, paddingBottom: 30, borderBottomLeftRadius: 32, borderBottomRightRadius: 32, overflow: 'hidden', ...shadowHeader }}
             >
                 <View style={{ position: 'absolute', top: -70, right: -40, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(255,255,255,0.07)' }} />
                 <View style={{ position: 'absolute', bottom: -80, left: -50, width: 170, height: 170, borderRadius: 85, backgroundColor: 'rgba(255,255,255,0.05)' }} />
@@ -56,7 +63,12 @@ export function HoyScreen({ data, onToggle, onSnooze, onDelete, onAdd, onOpenSet
             </LinearGradient>
 
             {/* LISTA */}
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 22, paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 22, paddingBottom: 130 + insets.bottom }}
+                showsVerticalScrollIndicator={false}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={doRefresh} tintColor={C.accent} colors={[C.accent]} />}
+            >
                 {pending.length > 0 && (
                     <>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 6, paddingBottom: 12 }}>
@@ -96,7 +108,7 @@ export function HoyScreen({ data, onToggle, onSnooze, onDelete, onAdd, onOpenSet
             {/* FAB */}
             <Pressable
                 onPress={onAdd}
-                style={({ pressed }) => ({ position: 'absolute', right: 20, bottom: 28, transform: [{ scale: pressed ? 0.95 : 1 }] })}
+                style={({ pressed }) => ({ position: 'absolute', right: 20, bottom: 28 + insets.bottom, transform: [{ scale: pressed ? 0.95 : 1 }] })}
             >
                 <LinearGradient colors={GRAD_FAB} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                     style={{ height: 58, paddingLeft: 18, paddingRight: 22, borderRadius: 20, flexDirection: 'row', alignItems: 'center', gap: 9, ...shadowFab }}>

@@ -1,19 +1,21 @@
 import React from 'react';
 import { View, Text, Pressable, ScrollView, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight, Check, Trash2, History } from 'lucide-react-native';
 import { C, F, R, GRAD_HEADER, shadowHeader, shadowCard } from '../theme';
 
 // Revisión obligatoria de inicio del día: por cada tarea que quedó pendiente de días anteriores,
 // decidir Pasar a hoy / Hecha / Eliminar. No se puede cerrar hasta resolver todas.
 export function RevisionScreen({ visible, tasks, onToday, onDone, onDelete, onAllToday }) {
+    const insets = useSafeAreaInsets();
     const count = tasks?.length || 0;
     return (
-        <Modal visible={visible} animationType="slide" onRequestClose={() => {}}>
+        <Modal visible={visible} animationType="slide" onRequestClose={() => {}} statusBarTranslucent navigationBarTranslucent>
             <View style={{ flex: 1, backgroundColor: C.bg }}>
                 <LinearGradient
                     colors={GRAD_HEADER} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                    style={{ paddingTop: 54, paddingHorizontal: 24, paddingBottom: 24, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, ...shadowHeader }}
+                    style={{ paddingTop: insets.top + 16, paddingHorizontal: 24, paddingBottom: 24, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, ...shadowHeader }}
                 >
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
                         <History size={18} color="rgba(255,255,255,0.85)" strokeWidth={1.9} />
@@ -58,7 +60,7 @@ export function RevisionScreen({ visible, tasks, onToday, onDone, onDelete, onAl
                     ))}
                 </ScrollView>
 
-                <View style={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 28, borderTopWidth: 1, borderTopColor: C.hairline2 }}>
+                <View style={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 28 + insets.bottom, borderTopWidth: 1, borderTopColor: C.hairline2 }}>
                     <Pressable
                         onPress={onAllToday}
                         style={({ pressed }) => ({ backgroundColor: pressed ? C.accentTintPress : C.accentTint, paddingVertical: 16, borderRadius: R.md, alignItems: 'center' })}

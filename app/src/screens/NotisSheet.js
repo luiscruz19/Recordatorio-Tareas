@@ -1,17 +1,19 @@
 import React from 'react';
 import { View, Text, Pressable, Modal, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bell, Check } from 'lucide-react-native';
 import { C, F, R } from '../theme';
 
 // Panel de notificaciones (lista de recordatorios recibidos del servidor).
 export function NotisSheet({ visible, onClose, items, onMarkAllRead }) {
+    const insets = useSafeAreaInsets();
     const list = items || [];
     const hasUnread = list.some((n) => !n.read_at);
     return (
-        <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+        <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
             <View style={{ flex: 1, justifyContent: 'flex-end' }}>
                 <Pressable style={{ position: 'absolute', inset: 0, backgroundColor: C.overlay }} onPress={onClose} />
-                <View style={{ backgroundColor: C.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 22, paddingTop: 12, paddingBottom: 30, maxHeight: '78%' }}>
+                <View style={{ backgroundColor: C.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 22, paddingTop: 12, paddingBottom: 30 + insets.bottom, maxHeight: '78%' }}>
                     <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: C.bgTint2, alignSelf: 'center', marginBottom: 18 }} />
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                         <Text style={{ fontFamily: F.bold, fontSize: 22, color: C.ink, letterSpacing: -0.3 }}>Notificaciones</Text>
