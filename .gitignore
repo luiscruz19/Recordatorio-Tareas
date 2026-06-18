@@ -14,3 +14,10 @@ npm-debug.log*
 .expo/
 dist/
 .DS_Store
+
+# Firebase — clave de cuenta de servicio (SECRETA, nunca versionar)
+**/*firebase-adminsdk*.json
+**/service-account*.json
+
+# Artefactos de WSL/descargas
+*Zone.Identifier
