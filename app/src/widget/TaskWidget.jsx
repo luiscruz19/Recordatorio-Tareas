@@ -1,8 +1,8 @@
 import React from 'react';
 import { FlexWidget, TextWidget } from 'react-native-android-widget';
 
-// Vista del widget de pantalla de inicio (Android). Mismo estilo que la app: fondo claro,
-// pendientes de hoy, botón "+". Tocar abre la app; el "+" abre el formulario de agregar.
+// Widget de pantalla de inicio (Android), fondo azul de marca. Pendientes de hoy + botón "+".
+// Tocar el widget abre la app; el "+" abre el formulario de nueva tarea.
 export function TaskWidget({ data }) {
     const pending = (data && data.pending) || [];
     const done = (data && data.done) || 0;
@@ -14,38 +14,38 @@ export function TaskWidget({ data }) {
             clickActionData={{ uri: 'recordatorios://hoy' }}
             style={{
                 height: 'match_parent', width: 'match_parent',
-                backgroundColor: '#FFFFFF', borderRadius: 24, padding: 14, flexDirection: 'column',
+                backgroundColor: '#21498F', borderRadius: 24, padding: 16, flexDirection: 'column',
             }}
         >
-            <FlexWidget style={{ flexDirection: 'row', width: 'match_parent', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <TextWidget text="Tareas de hoy" style={{ fontSize: 15, fontWeight: '700', color: '#1F2433' }} />
+            <FlexWidget style={{ flexDirection: 'row', width: 'match_parent', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <TextWidget text="Tareas de hoy" style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' }} />
                 <FlexWidget
                     clickAction="OPEN_URI"
                     clickActionData={{ uri: 'recordatorios://add' }}
-                    style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: '#1F4894', alignItems: 'center', justifyContent: 'center' }}
+                    style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}
                 >
-                    <TextWidget text="+" style={{ fontSize: 24, color: '#FFFFFF' }} />
+                    <TextWidget text="+" style={{ fontSize: 24, color: '#1F4894' }} />
                 </FlexWidget>
             </FlexWidget>
 
             {pending.length === 0 ? (
-                <TextWidget text="¡Todo hecho por hoy!" style={{ fontSize: 13, color: '#8A93A6', marginTop: 14 }} />
+                <TextWidget text="¡Todo hecho por hoy!" style={{ fontSize: 13, color: '#AFC2E6', marginTop: 6 }} />
             ) : (
                 pending.slice(0, 4).map((t) => (
                     <FlexWidget
                         key={String(t.id)}
                         clickAction="OPEN_URI"
                         clickActionData={{ uri: `recordatorios://task/${t.id}` }}
-                        style={{ flexDirection: 'row', width: 'match_parent', alignItems: 'center', marginTop: 10 }}
+                        style={{ flexDirection: 'row', width: 'match_parent', alignItems: 'center', marginBottom: 10 }}
                     >
-                        <FlexWidget style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: '#E7ECF6', marginRight: 10 }} />
-                        <TextWidget text={t.text} maxLines={1} truncate="END" style={{ fontSize: 14, color: '#2B3142' }} />
+                        <FlexWidget style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: '#6E8CC4', marginRight: 11 }} />
+                        <TextWidget text={t.text} maxLines={1} truncate="END" style={{ fontSize: 14, color: '#EAF0FA' }} />
                     </FlexWidget>
                 ))
             )}
 
             <FlexWidget style={{ flexGrow: 1 }} />
-            <TextWidget text={`${done} de ${total} completadas`} style={{ fontSize: 12, color: '#9AA3B5', marginTop: 10 }} />
+            <TextWidget text={`${done} de ${total} completadas`} style={{ fontSize: 12, color: '#9FB4DC', marginTop: 8 }} />
         </FlexWidget>
     );
 }

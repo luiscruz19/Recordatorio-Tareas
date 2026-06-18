@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { login, me, hasPin, loginPin, setPin } from '../../controllers/auth/proxy.controllers.js';
 import validateToken from '../../middlewares/validate-token.js';
-import resolveProfile from '../../middlewares/resolve-profile.js';
 
 const auth = Router();
 
@@ -12,6 +11,6 @@ auth.get('/has-pin', hasPin);      // ¿el email ya tiene PIN en fichada?
 auth.post('/set-pin', setPin);     // crear/cambiar el PIN en fichada (fichada valida el JWT)
 
 // Perfil + ajustes locales del usuario autenticado (esto sí es propio de recordatorios).
-auth.get('/me', [validateToken, resolveProfile], me);
+auth.get('/me', validateToken, me);
 
 export default auth;
