@@ -1,18 +1,17 @@
 import { Router } from 'express';
-import { login, me } from '../../controllers/auth/proxy.controllers.js';
-import { setPin, loginPin, hasPin } from '../../controllers/auth/pin.controllers.js';
+import { login, me, hasPin, loginPin, setPin } from '../../controllers/auth/proxy.controllers.js';
 import validateToken from '../../middlewares/validate-token.js';
 import resolveProfile from '../../middlewares/resolve-profile.js';
 
 const auth = Router();
 
-// Públicos (sin token):
-auth.post('/login', login);        // primer ingreso: email + contraseña (proxy a fichada_auth)
-auth.post('/login-pin', loginPin); // ingresos siguientes: email + PIN
-auth.get('/has-pin', hasPin);      // ¿el email ya tiene PIN? → la app elige pantalla
+// Credenciales: delegadas 100% a fichada_api (mismos usuarios + mismo PIN que fichada).
+auth.post('/login', login);        // primer ingreso: email + contraseña
+auth.post('/login-pin', loginPin); // ingresos siguientes: email + PIN (el de fichada)
+auth.get('/has-pin', hasPin);      // ¿el email ya tiene PIN en fichada?
+auth.post('/set-pin', setPin);     // crear/cambiar el PIN en fichada (fichada valida el JWT)
 
-// Protegidos (JWT):
+// Perfil + ajustes locales del usuario autenticado (esto sí es propio de recordatorios).
 auth.get('/me', [validateToken, resolveProfile], me);
-auth.post('/set-pin', [validateToken, resolveProfile], setPin); // crear PIN tras el primer ingreso
 
 export default auth;
