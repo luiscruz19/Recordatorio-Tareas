@@ -1,0 +1,16 @@
+node_modules/
+*.log
+npm-debug.log*
+
+# Variables de entorno (se generan desde los .env.example)
+.env
+**/.env
+
+# Deploy: los reales NO se versionan; los .example sí.
+.env.deploy.*
+!.env.deploy.example
+
+# Expo / build / OS
+.expo/
+dist/
+.DS_Store

@@ -1,0 +1,85 @@
+{
+  "expo": {
+    "name": "Recordatorio Tareas",
+    "slug": "recordatorio-tareas",
+    "scheme": "recordatorios",
+    "owner": "luiscruzz.salta",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F4F6FA",
+    "icon": "./assets/icon-app-512.png",
+    "splash": {
+      "image": "./assets/icon-app-512.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#EEF1F8"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "android": {
+      "package": "com.recordatorios.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-foreground-432.png",
+        "backgroundImage": "./assets/adaptive-background-432.png"
+      },
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.recordatorios.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon-192.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-96.png",
+          "color": "#1F4894"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "Tareas",
+              "label": "Tareas de hoy",
+              "minWidth": "180dp",
+              "minHeight": "110dp",
+              "description": "Tus tareas pendientes del día",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "previewImage": "./assets/icon-app-512.png",
+              "updatePeriodMillis": 1800000,
+              "resizeMode": "horizontal|vertical"
+            }
+          ]
+        }
+      ],
+      "@react-native-community/datetimepicker"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "0396de90-e812-4472-8a5c-ca9aef1e5de1"
+      }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/0396de90-e812-4472-8a5c-ca9aef1e5de1"
+    }
+  }
+}
