@@ -3,7 +3,7 @@ import { View, Text, Pressable, ScrollView, Switch, Platform } from 'react-nativ
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { ChevronLeft, ChevronRight, Clock3, Bell, RotateCcw, Sunrise, Moon } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Clock3, Bell, RotateCcw, Sunrise, Moon, Lock, LogOut } from 'lucide-react-native';
 import { C, F, R, GRAD_HEADER, shadowHeader, shadowCard } from '../theme';
 
 const INTERVALS = [
@@ -33,7 +33,7 @@ function timeLabel(t) {
     return String(t || '').slice(0, 5);
 }
 
-export function AjustesScreen({ settings, onBack, onChange, onSimulateReview, notifStatus }) {
+export function AjustesScreen({ settings, onBack, onChange, onSimulateReview, notifStatus, onLock, onLogout }) {
     const insets = useSafeAreaInsets();
     const [picker, setPicker] = useState(null); // { section: 'plan'|'close', field: 'start'|'end' } | null
     const s = settings || {};
@@ -133,6 +133,34 @@ export function AjustesScreen({ settings, onBack, onChange, onSimulateReview, no
                     </View>
                     <ChevronRight size={18} color="#C2C8D2" strokeWidth={2} />
                 </Pressable>
+
+                {/* Sesión */}
+                {(onLock || onLogout) && (
+                    <>
+                        <Text style={[label, { marginTop: 26 }]}>Sesión</Text>
+                        <View style={{ backgroundColor: C.surface, borderRadius: R.lg, overflow: 'hidden', ...shadowCard }}>
+                            {onLock && (
+                                <Pressable onPress={onLock}
+                                    style={({ pressed }) => ({ backgroundColor: pressed ? '#FAFBFD' : 'transparent', paddingHorizontal: 18, paddingVertical: 17, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: onLogout ? 1 : 0, borderBottomColor: C.hairline })}>
+                                    <IconBox><Lock size={18} color={C.accent} strokeWidth={1.8} /></IconBox>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={{ fontFamily: F.semi, fontSize: 16, color: C.ink }}>Bloquear app</Text>
+                                        <Text style={{ fontFamily: F.reg, fontSize: 13, color: C.muted2, marginTop: 1 }}>Reingresá con huella/PIN sin cerrar sesión</Text>
+                                    </View>
+                                    <ChevronRight size={18} color="#C2C8D2" strokeWidth={2} />
+                                </Pressable>
+                            )}
+                            {onLogout && (
+                                <Pressable onPress={onLogout}
+                                    style={({ pressed }) => ({ backgroundColor: pressed ? '#FAFBFD' : 'transparent', paddingHorizontal: 18, paddingVertical: 17, flexDirection: 'row', alignItems: 'center', gap: 12 })}>
+                                    <IconBox><LogOut size={18} color={C.danger} strokeWidth={1.8} /></IconBox>
+                                    <Text style={{ flex: 1, fontFamily: F.semi, fontSize: 16, color: C.danger }}>Cerrar sesión</Text>
+                                    <ChevronRight size={18} color="#C2C8D2" strokeWidth={2} />
+                                </Pressable>
+                            )}
+                        </View>
+                    </>
+                )}
             </ScrollView>
 
             {picker && (

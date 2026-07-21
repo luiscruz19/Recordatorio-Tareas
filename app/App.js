@@ -121,6 +121,12 @@ export default function App() {
         const last = await getItem(EMAIL_KEY);
         if (!last) { setSession('emailEntry'); return; }
         setEmail(last);
+        // ¿Biometría disponible? PIN local + hardware enrolado (igual que fichada).
+        const localPin = await biometry.getLocalPin();
+        setCanBio(!!localPin && await biometry.hwEnrolled());
+        // PIN ya configurado en este teléfono → directo al PIN (offline-friendly).
+        if (localPin) { setSession('loginPin'); return; }
+        // Sin PIN local: le preguntamos al servidor si la cuenta ya tiene PIN.
         try {
             const res = await api.hasPin(last);
             setSession(res?.has_pin ? 'loginPin' : 'loginPassword');
@@ -206,7 +212,13 @@ export default function App() {
         try {
             await setItem(EMAIL_KEY, e);
             const res = await api.hasPin(e);
-            setSession(res?.has_pin ? 'loginPin' : 'loginPassword');
+            if (res?.has_pin) {
+                const localPin = await biometry.getLocalPin();
+                setCanBio(!!localPin && await biometry.hwEnrolled());
+                setSession('loginPin');
+            } else {
+                setSession('loginPassword');
+            }
         } catch {
             setAuthError('No se pudo conectar con el servidor');
         } finally {
@@ -229,7 +241,7 @@ export default function App() {
             setBusy(true);
             try {
                 await api.setPinRemote(value);
-                await biometry.saveLocalPin(email, value); // habilita huella/FaceID en este teléfono
+                await biometry.saveLocalPin(value); // habilita huella/FaceID en este teléfono
                 setAuthError(null); setSession('active');
             }
             catch { setAuthError('No se pudo guardar el PIN'); setSession('createPin'); }
@@ -238,7 +250,7 @@ export default function App() {
             setBusy(true);
             try {
                 await api.loginPin(email, value);
-                await biometry.saveLocalPin(email, value); // recuerda el PIN para la biometría
+                await biometry.saveLocalPin(value); // recuerda el PIN para la biometría
                 setAuthError(null); setSession('active');
             }
             catch (e) { setAuthError(e?.message || 'PIN incorrecto'); }
@@ -247,11 +259,11 @@ export default function App() {
     };
 
     // Login con biometría: valida huella/FaceID → recupera el PIN local → login-pin normal.
-    const onBio = useCallback(async () => {
+    const onBio = async () => {
         try {
             const ok = await biometry.authenticate();
             if (!ok) return;
-            const localPin = await biometry.getLocalPin(email);
+            const localPin = await biometry.getLocalPin();
             if (!localPin) return;
             setBusy(true);
             await api.loginPin(email, localPin);
@@ -261,21 +273,36 @@ export default function App() {
         } finally {
             setBusy(false);
         }
-    }, [email]);
+    };
 
-    // Al entrar a la pantalla de PIN: ¿hay biometría disponible? Si sí, se dispara sola (una vez).
+    // Al llegar a la pantalla de PIN con biometría disponible, se dispara sola (una vez),
+    // como las apps de banco; si la cancelás, queda el teclado de PIN (igual que fichada).
     useEffect(() => {
-        if (session !== 'loginPin') { bioTried.current = false; return; }
-        let alive = true;
-        biometry.canUseBiometry(email).then((can) => {
-            if (!alive) return;
-            setCanBio(can);
-            if (can && !bioTried.current) { bioTried.current = true; onBio(); }
-        });
-        return () => { alive = false; };
-    }, [session, email, onBio]);
+        if (session === 'loginPin' && canBio && !bioTried.current) {
+            bioTried.current = true;
+            onBio();
+        }
+        if (session !== 'loginPin') bioTried.current = false;
+    }, [session, canBio]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const onBackEmail = () => { setAuthError(null); setSession('emailEntry'); };
+
+    // Bloquear app: vuelve a la pantalla de PIN (conserva token y PIN local). Si hay biometría,
+    // se dispara sola al entrar. Es el camino para reingresar con huella sin cerrar la sesión.
+    const onLock = async () => {
+        setScreen('hoy'); setAuthError(null);
+        const localPin = await biometry.getLocalPin();
+        setCanBio(!!localPin && await biometry.hwEnrolled());
+        setSession('loginPin');
+    };
+
+    // Cerrar sesión: borra token y PIN local; vuelve al ingreso recordando el email.
+    const onLogout = async () => {
+        setScreen('hoy'); setAuthError(null);
+        await api.clearToken();
+        await biometry.clearLocalPin();
+        await goToLogin();
+    };
 
     // ─── Acciones de tareas (UI OPTIMISTA: feedback inmediato + animación) ─────
     const onToggle = (task) => {
@@ -437,6 +464,8 @@ export default function App() {
                             onBack={() => setScreen('hoy')}
                             onChange={onChangeSettings}
                             onSimulateReview={onSimulateReview}
+                            onLock={onLock}
+                            onLogout={onLogout}
                         />
                     )}
 
