@@ -3,12 +3,18 @@ import { View, Text, Pressable, ScrollView, Switch, Platform } from 'react-nativ
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { ChevronLeft, ChevronRight, Clock3, Bell, RotateCcw } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Clock3, Bell, RotateCcw, Sunrise, Moon } from 'lucide-react-native';
 import { C, F, R, GRAD_HEADER, shadowHeader, shadowCard } from '../theme';
 
 const INTERVALS = [
     { value: 30, label: '30 min' },
     { value: 60, label: '1 h' },
+    { value: 120, label: '2 h' },
+    { value: 240, label: '4 h' },
+];
+const LOADED_INTERVALS = [
+    { value: 60, label: '1 h' },
+    { value: 90, label: '1.5 h' },
     { value: 120, label: '2 h' },
     { value: 240, label: '4 h' },
 ];
@@ -29,10 +35,24 @@ function timeLabel(t) {
 
 export function AjustesScreen({ settings, onBack, onChange, onSimulateReview, notifStatus }) {
     const insets = useSafeAreaInsets();
-    const [picker, setPicker] = useState(null); // 'start' | 'end' | null
+    const [picker, setPicker] = useState(null); // { section: 'plan'|'close', field: 'start'|'end' } | null
     const s = settings || {};
     const notifOn = !!s.notif_enabled;
-    const notifLabel = notifStatus === 'granted' || notifOn ? 'Activadas · suenan en tu franja' : 'Desactivadas';
+    const notifLabel = notifStatus === 'granted' || notifOn ? 'Activadas · suenan en tus franjas' : 'Desactivadas';
+
+    const planOn = s.plan_enabled !== false;
+    const closeOn = s.close_enabled !== false;
+
+    // Valor y campo del picker actual (según sección).
+    const pickerValue = picker
+        ? (picker.section === 'plan'
+            ? (picker.field === 'start' ? s.plan_window_start : s.plan_window_end)
+            : (picker.field === 'start' ? s.close_window_start : s.close_window_end))
+        : null;
+    const applyPicker = (time) => {
+        const key = `${picker.section}_window_${picker.field}`; // plan_window_start, close_window_end, ...
+        onChange({ [key]: time });
+    };
 
     return (
         <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -48,28 +68,40 @@ export function AjustesScreen({ settings, onBack, onChange, onSimulateReview, no
             </LinearGradient>
 
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 22, paddingBottom: 40 + insets.bottom }}>
-                {/* Recordarme cada */}
-                <Text style={label}>Recordarme cada</Text>
-                <View style={{ backgroundColor: C.surface, borderRadius: R.lg, padding: 6, flexDirection: 'row', gap: 6, ...shadowCard }}>
-                    {INTERVALS.map((o) => {
-                        const active = Number(s.interval_minutes) === o.value;
-                        return (
-                            <Pressable key={o.value} onPress={() => onChange({ interval_minutes: o.value })}
-                                style={{ flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: R.md, backgroundColor: active ? C.accent : 'transparent' }}>
-                                <Text style={{ fontFamily: F.semi, fontSize: 14, color: active ? '#fff' : C.ink3 }}>{o.label}</Text>
-                            </Pressable>
-                        );
-                    })}
-                </View>
-                <Text style={hint}>Un solo ritmo para todas las tareas del día.</Text>
+                {/* ─── PLANIFICACIÓN (mañana) ─── */}
+                <SectionHeader icon={<Sunrise size={17} color={C.accent} strokeWidth={1.9} />} title="Planificación (mañana)"
+                    on={planOn} onToggle={(v) => onChange({ plan_enabled: v })} />
+                {planOn && (
+                    <>
+                        <View style={{ backgroundColor: C.surface, borderRadius: R.lg, overflow: 'hidden', ...shadowCard }}>
+                            <TimeRow label="Desde" value={timeLabel(s.plan_window_start)} onPress={() => setPicker({ section: 'plan', field: 'start' })} divider />
+                            <TimeRow label="Hasta" value={timeLabel(s.plan_window_end)} onPress={() => setPicker({ section: 'plan', field: 'end' })} />
+                        </View>
+                        <Text style={[label, { marginTop: 20 }]}>Recordarme cada</Text>
+                        <IntervalRow options={INTERVALS} value={s.plan_interval_minutes} onPick={(v) => onChange({ plan_interval_minutes: v })} />
+                        <Text style={hint}>Ritmo mientras no cargaste ninguna tarea para hoy.</Text>
+                        <Text style={[label, { marginTop: 18 }]}>Una vez que cargué tareas</Text>
+                        <IntervalRow options={LOADED_INTERVALS} value={s.plan_interval_loaded_minutes} onPick={(v) => onChange({ plan_interval_loaded_minutes: v })} />
+                        <Text style={hint}>Sigue recordándote, pero más espaciado. Solo cuentan las tareas cargadas para HOY.</Text>
+                    </>
+                )}
 
-                {/* Franja horaria */}
-                <Text style={[label, { marginTop: 26 }]}>Franja horaria activa</Text>
-                <View style={{ backgroundColor: C.surface, borderRadius: R.lg, overflow: 'hidden', ...shadowCard }}>
-                    <TimeRow icon label="Desde" value={timeLabel(s.window_start)} onPress={() => setPicker('start')} divider />
-                    <TimeRow icon label="Hasta" value={timeLabel(s.window_end)} onPress={() => setPicker('end')} />
+                {/* ─── CIERRE (tarde) ─── */}
+                <View style={{ marginTop: 30 }}>
+                    <SectionHeader icon={<Moon size={17} color={C.accent} strokeWidth={1.9} />} title="Cierre (tarde)"
+                        on={closeOn} onToggle={(v) => onChange({ close_enabled: v })} />
                 </View>
-                <Text style={hint}>Fuera de esta franja no suenan recordatorios.</Text>
+                {closeOn && (
+                    <>
+                        <View style={{ backgroundColor: C.surface, borderRadius: R.lg, overflow: 'hidden', ...shadowCard }}>
+                            <TimeRow label="Desde" value={timeLabel(s.close_window_start)} onPress={() => setPicker({ section: 'close', field: 'start' })} divider />
+                            <TimeRow label="Hasta" value={timeLabel(s.close_window_end)} onPress={() => setPicker({ section: 'close', field: 'end' })} />
+                        </View>
+                        <Text style={[label, { marginTop: 20 }]}>Recordarme cada</Text>
+                        <IntervalRow options={INTERVALS} value={s.close_interval_minutes} onPick={(v) => onChange({ close_interval_minutes: v })} />
+                        <Text style={hint}>Te avisa las tareas que quedan pendientes para hoy.</Text>
+                    </>
+                )}
 
                 {/* Notificaciones */}
                 <Text style={[label, { marginTop: 26 }]}>Notificaciones</Text>
@@ -105,14 +137,49 @@ export function AjustesScreen({ settings, onBack, onChange, onSimulateReview, no
 
             {picker && (
                 <DateTimePicker
-                    value={timeToDate(picker === 'start' ? s.window_start : s.window_end)}
+                    value={timeToDate(pickerValue)}
                     mode="time" is24Hour
                     onChange={(e, d) => {
                         setPicker(Platform.OS === 'ios' ? picker : null);
-                        if (d) onChange(picker === 'start' ? { window_start: dateToTime(d) } : { window_end: dateToTime(d) });
+                        if (d) applyPicker(dateToTime(d));
                     }}
                 />
             )}
+        </View>
+    );
+}
+
+// Cabecera de sección con interruptor propio.
+function SectionHeader({ icon, title, on, onToggle }) {
+    return (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 6, paddingBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+                {icon}
+                <Text style={{ fontFamily: F.semi, fontSize: 13, letterSpacing: 0.8, textTransform: 'uppercase', color: C.muted }}>{title}</Text>
+            </View>
+            <Switch
+                value={on}
+                onValueChange={onToggle}
+                trackColor={{ false: '#D3D8E2', true: C.accent }}
+                thumbColor="#fff"
+            />
+        </View>
+    );
+}
+
+// Fila de intervalos (chips).
+function IntervalRow({ options, value, onPick }) {
+    return (
+        <View style={{ backgroundColor: C.surface, borderRadius: R.lg, padding: 6, flexDirection: 'row', gap: 6, ...shadowCard }}>
+            {options.map((o) => {
+                const active = Number(value) === o.value;
+                return (
+                    <Pressable key={o.value} onPress={() => onPick(o.value)}
+                        style={{ flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: R.md, backgroundColor: active ? C.accent : 'transparent' }}>
+                        <Text style={{ fontFamily: F.semi, fontSize: 14, color: active ? '#fff' : C.ink3 }}>{o.label}</Text>
+                    </Pressable>
+                );
+            })}
         </View>
     );
 }

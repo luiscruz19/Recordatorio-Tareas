@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, ActivityIndicator, Linking, LayoutAnimation, UIManager, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -15,6 +15,7 @@ import { C } from './src/theme';
 import * as api from './src/api';
 import { getItem, setItem } from './src/storage';
 import { syncDevice } from './src/device';
+import * as biometry from './src/biometry';
 import * as localNotifs from './src/notifications';
 import { saveWidgetData, refreshWidget } from './src/widget/data';
 import { todayISO } from './src/helpers';
@@ -72,6 +73,8 @@ export default function App() {
     const [pinDraft, setPinDraft] = useState('');
     const [authError, setAuthError] = useState(null);
     const [busy, setBusy] = useState(false);
+    const [canBio, setCanBio] = useState(false);
+    const bioTried = useRef(false);
 
     const [today, setToday] = useState(EMPTY_TODAY);
     const [loaded, setLoaded] = useState(false);     // primer load de Hoy completado
@@ -104,7 +107,7 @@ export default function App() {
             done: done.length,
             total: pending.length + done.length,
         }).then(refreshWidget).catch(() => {});
-        if (set) localNotifs.reschedule(set, pending.length);
+        if (set) localNotifs.reschedule(set, pending.length, pending.length + done.length);
     }, []);
 
     // Reconciliación silenciosa con el servidor (sin spinner ni animación): trae la verdad
@@ -224,16 +227,53 @@ export default function App() {
         } else if (mode === 'confirm') {
             if (value !== pinDraft) { setAuthError('El PIN no coincide'); setSession('createPin'); return; }
             setBusy(true);
-            try { await api.setPinRemote(value); setAuthError(null); setSession('active'); }
+            try {
+                await api.setPinRemote(value);
+                await biometry.saveLocalPin(email, value); // habilita huella/FaceID en este teléfono
+                setAuthError(null); setSession('active');
+            }
             catch { setAuthError('No se pudo guardar el PIN'); setSession('createPin'); }
             finally { setBusy(false); }
         } else if (mode === 'login') {
             setBusy(true);
-            try { await api.loginPin(email, value); setAuthError(null); setSession('active'); }
+            try {
+                await api.loginPin(email, value);
+                await biometry.saveLocalPin(email, value); // recuerda el PIN para la biometría
+                setAuthError(null); setSession('active');
+            }
             catch (e) { setAuthError(e?.message || 'PIN incorrecto'); }
             finally { setBusy(false); }
         }
     };
+
+    // Login con biometría: valida huella/FaceID → recupera el PIN local → login-pin normal.
+    const onBio = useCallback(async () => {
+        try {
+            const ok = await biometry.authenticate();
+            if (!ok) return;
+            const localPin = await biometry.getLocalPin(email);
+            if (!localPin) return;
+            setBusy(true);
+            await api.loginPin(email, localPin);
+            setAuthError(null); setSession('active');
+        } catch (e) {
+            setAuthError(e?.message || 'No se pudo validar la biometría');
+        } finally {
+            setBusy(false);
+        }
+    }, [email]);
+
+    // Al entrar a la pantalla de PIN: ¿hay biometría disponible? Si sí, se dispara sola (una vez).
+    useEffect(() => {
+        if (session !== 'loginPin') { bioTried.current = false; return; }
+        let alive = true;
+        biometry.canUseBiometry(email).then((can) => {
+            if (!alive) return;
+            setCanBio(can);
+            if (can && !bioTried.current) { bioTried.current = true; onBio(); }
+        });
+        return () => { alive = false; };
+    }, [session, email, onBio]);
 
     const onBackEmail = () => { setAuthError(null); setSession('emailEntry'); };
 
@@ -369,7 +409,7 @@ export default function App() {
     } else if (session === 'confirmPin') {
         authScreen = <PinScreen mode="confirm" onComplete={(v) => onPin('confirm', v)} error={authError} />;
     } else if (session === 'loginPin') {
-        authScreen = <PinScreen mode="login" email={email} onComplete={(v) => onPin('login', v)} onBack={onBackEmail} error={authError} />;
+        authScreen = <PinScreen mode="login" email={email} onComplete={(v) => onPin('login', v)} onBio={canBio ? onBio : undefined} onBack={onBackEmail} error={authError} />;
     }
 
     return (

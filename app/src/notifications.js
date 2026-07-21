@@ -53,42 +53,61 @@ export async function setupCategory() {
     } catch { /* no-op */ }
 }
 
+// Agenda los disparos de HOY que aún faltan dentro de [startMin, endMin] cada `interval`.
+// Devuelve cuántos programó (tope global para no saturar la cola del SO).
+async function scheduleWindow(n, { startMin, endMin, interval, title, body, data, nowMin, now, budget }) {
+    let scheduled = 0;
+    for (let m = startMin; m <= endMin && scheduled < budget; m += interval) {
+        if (m <= nowMin) continue;
+        const date = new Date(now);
+        date.setHours(Math.floor(m / 60), m % 60, 0, 0);
+        await n.scheduleNotificationAsync({
+            content: { title, body, categoryIdentifier: CATEGORY, data, sound: 'default' },
+            trigger: date,
+        });
+        scheduled++;
+    }
+    return scheduled;
+}
+
 /**
- * Reprograma las notificaciones locales: cancela todo y agenda los disparos de HOY que aún
- * faltan, dentro de [window_start, window_end] cada interval_minutes, si hay pendientes.
+ * Reprograma las notificaciones locales (lado app del esquema híbrido). Cancela todo y agenda
+ * los disparos de HOY que aún faltan para dos recordatorios independientes:
+ *  - PLANIFICACIÓN: en la franja de la mañana, si aún NO cargaste tareas para hoy.
+ *  - CIERRE: en la franja de la tarde, si quedan tareas pendientes para hoy.
  */
-export async function reschedule(settings, pendingCount) {
+export async function reschedule(settings, pendingCount, loadedCount = 0) {
     const n = load();
     if (!n) return;
     try {
         await n.cancelAllScheduledNotificationsAsync();
-        if (!settings?.enabled || !settings?.notif_enabled || !pendingCount) return;
+        if (!settings?.enabled || !settings?.notif_enabled) return;
         const granted = await ensurePermission();
         if (!granted) return;
 
-        const startMin = toMin(settings.window_start);
-        const endMin = toMin(settings.window_end);
-        const interval = Math.max(5, Number(settings.interval_minutes) || 120);
-        const body = `Te ${pendingCount === 1 ? 'queda' : 'quedan'} ${pendingCount} ${pendingCount === 1 ? 'tarea' : 'tareas'} para hoy.`;
-
         const now = new Date();
         const nowMin = now.getHours() * 60 + now.getMinutes();
-        let scheduled = 0;
-        for (let m = startMin; m <= endMin && scheduled < 24; m += interval) {
-            if (m <= nowMin) continue;
-            const date = new Date(now);
-            date.setHours(Math.floor(m / 60), m % 60, 0, 0);
-            await n.scheduleNotificationAsync({
-                content: {
-                    title: 'Tareas pendientes',
-                    body,
-                    categoryIdentifier: CATEGORY,
-                    data: { type: 'task_reminder' },
-                    sound: 'default',
-                },
-                trigger: date,
+
+        // PLANIFICACIÓN (mañana): solo si no cargaste ninguna tarea para hoy.
+        if (settings.plan_enabled !== false && !loadedCount) {
+            await scheduleWindow(n, {
+                startMin: toMin(settings.plan_window_start), endMin: toMin(settings.plan_window_end),
+                interval: Math.max(5, Number(settings.plan_interval_minutes) || 30),
+                title: 'Planificá tu día',
+                body: 'Todavía no cargaste tareas para hoy. Planificá tu día ✍️',
+                data: { type: 'plan_reminder' }, nowMin, now, budget: 8,
             });
-            scheduled++;
+        }
+
+        // CIERRE (tarde): solo si quedan pendientes para hoy.
+        if (settings.close_enabled !== false && pendingCount) {
+            await scheduleWindow(n, {
+                startMin: toMin(settings.close_window_start), endMin: toMin(settings.close_window_end),
+                interval: Math.max(5, Number(settings.close_interval_minutes) || 60),
+                title: 'Tareas pendientes',
+                body: `Te ${pendingCount === 1 ? 'queda' : 'quedan'} ${pendingCount} ${pendingCount === 1 ? 'tarea' : 'tareas'} para hoy.`,
+                data: { type: 'task_reminder' }, nowMin, now, budget: 16,
+            });
         }
     } catch { /* best-effort */ }
 }
