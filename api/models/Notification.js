@@ -20,17 +20,17 @@ const Notification = sequelize.define('notifications', {
         },
     },
     type: {
-        type: DataTypes.ENUM('task_reminder'),
+        type: DataTypes.ENUM('task_reminder', 'plan_reminder'),
         allowNull: false,
         defaultValue: 'task_reminder',
         validate: {
             notNull: { msg: messages.error.notification.fields_empty.type },
             isIn: {
-                args: [['task_reminder']],
+                args: [['task_reminder', 'plan_reminder']],
                 msg: messages.generic.invalid_enum_value,
             },
         },
-        comment: 'task_reminder = recordatorio de tareas pendientes del día'
+        comment: 'task_reminder = cierre de tareas pendientes; plan_reminder = planificación (cargar tareas del día)'
     },
     title: {
         type: DataTypes.STRING,

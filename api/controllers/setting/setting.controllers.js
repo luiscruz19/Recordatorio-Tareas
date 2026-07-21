@@ -18,7 +18,14 @@ export async function updateSettings(req, res) {
     try {
         const settings = await getOrCreateSettings(req.user.id);
 
-        const fields = ['enabled', 'interval_minutes', 'window_start', 'window_end', 'notif_enabled', 'timezone'];
+        const fields = [
+            'enabled', 'notif_enabled', 'timezone',
+            'plan_enabled', 'plan_window_start', 'plan_window_end',
+            'plan_interval_minutes', 'plan_interval_loaded_minutes',
+            'close_enabled', 'close_window_start', 'close_window_end', 'close_interval_minutes',
+            // legacy (aceptados por compatibilidad)
+            'interval_minutes', 'window_start', 'window_end',
+        ];
         const updates = {};
         for (const f of fields) {
             if (req.body[f] !== undefined) updates[f] = req.body[f];
