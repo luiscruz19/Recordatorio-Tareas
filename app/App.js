@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { View, ActivityIndicator, Linking, LayoutAnimation, UIManager, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import Constants from 'expo-constants';
 import {
     useFonts,
     SpaceGrotesk_400Regular,
@@ -19,6 +18,7 @@ import * as biometry from './src/biometry';
 import * as localNotifs from './src/notifications';
 import { saveWidgetData, refreshWidget } from './src/widget/data';
 import { todayISO } from './src/helpers';
+import { IS_EXPO_GO } from './src/runtime';
 import * as haptics from './src/haptics';
 
 import { EmailScreen, PasswordScreen, PinScreen } from './src/screens/AccessScreens';
@@ -28,13 +28,17 @@ import { AgregarSheet } from './src/screens/AgregarSheet';
 import { RevisionScreen } from './src/screens/RevisionScreen';
 import { NotisSheet } from './src/screens/NotisSheet';
 
+const LAYOUT_ANIMATION_MS = 240;
+const EMAIL_KEY = 'recordatorios_email';
+const EMPTY_TODAY = { pending: [], done: [], pending_count: 0, done_count: 0, date: todayISO() };
+
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 function animate() {
     try {
         LayoutAnimation.configureNext(
-            LayoutAnimation.create(240, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity)
+            LayoutAnimation.create(LAYOUT_ANIMATION_MS, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity)
         );
     } catch {}
 }
@@ -45,20 +49,16 @@ function splitToday(prev, all) {
     return { ...prev, pending, done, pending_count: pending.length, done_count: done.length };
 }
 
-const IS_EXPO_GO = Constants.executionEnvironment === 'storeClient';
 if (!IS_EXPO_GO) {
     try {
-        const N = require('expo-notifications');
-        N.setNotificationHandler({
+        const Notifications = require('expo-notifications');
+        Notifications.setNotificationHandler({
             handleNotification: async () => ({
                 shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false,
             }),
         });
     } catch {}
 }
-
-const EMAIL_KEY = 'recordatorios_email';
-const EMPTY_TODAY = { pending: [], done: [], pending_count: 0, done_count: 0, date: todayISO() };
 
 export default function App() {
     const [fontsLoaded] = useFonts({
@@ -75,7 +75,7 @@ export default function App() {
     const bioTried = useRef(false);
 
     const [today, setToday] = useState(EMPTY_TODAY);
-    const [loaded, setLoaded] = useState(false);
+    const [todayLoaded, setTodayLoaded] = useState(false);
     const [carryover, setCarryover] = useState([]);
     const [settings, setSettings] = useState(null);
     const [notis, setNotis] = useState([]);
@@ -89,71 +89,71 @@ export default function App() {
 
     const unread = notis.filter((n) => !n.read_at).length;
 
-    const guard = useCallback(async (fn) => {
-        try { return await fn(); }
-        catch (e) {
-            if (e?.status === 401) { await api.clearToken(); await goToLogin(); }
-            return null;
-        }
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-    const syncSideEffects = useCallback((td, set) => {
-        const pending = td?.pending || [];
-        const done = td?.done || [];
-        saveWidgetData({
-            pending: pending.map((t) => ({ id: t.id, text: t.text })),
-            done: done.length,
-            total: pending.length + done.length,
-        }).then(refreshWidget).catch(() => {});
-        if (set) localNotifs.reschedule(set, pending.length, pending.length + done.length);
-    }, []);
-
-    // Tras una acción optimista trae del servidor los ids reales y el orden.
-    const reconcileToday = useCallback(async () => {
-        const r = await guard(() => api.getToday());
-        if (r?.data) { setToday(r.data); syncSideEffects(r.data, settings); }
-    }, [guard, settings, syncSideEffects]);
-
     const goToLogin = useCallback(async () => {
-        const last = await getItem(EMAIL_KEY);
-        if (!last) { setSession('emailEntry'); return; }
-        setEmail(last);
+        const lastEmail = await getItem(EMAIL_KEY);
+        if (!lastEmail) { setSession('emailEntry'); return; }
+        setEmail(lastEmail);
         const localPin = await biometry.getLocalPin();
         setCanBio(!!localPin && await biometry.hwEnrolled());
         // Con PIN local no hace falta consultar al servidor: funciona sin conexión.
         if (localPin) { setSession('loginPin'); return; }
         try {
-            const res = await api.hasPin(last);
+            const res = await api.hasPin(lastEmail);
             setSession(res?.has_pin ? 'loginPin' : 'loginPassword');
         } catch {
             setSession('emailEntry');
         }
     }, []);
 
+    const guard = useCallback(async (fn) => {
+        try { return await fn(); }
+        catch (e) {
+            if (e?.status === 401) { await api.clearToken(); await goToLogin(); }
+            return null;
+        }
+    }, [goToLogin]);
+
+    const syncSideEffects = useCallback((todayData, currentSettings) => {
+        const pending = todayData?.pending || [];
+        const done = todayData?.done || [];
+        saveWidgetData({
+            pending: pending.map((t) => ({ id: t.id, text: t.text })),
+            done: done.length,
+            total: pending.length + done.length,
+        }).then(refreshWidget).catch(() => {});
+        if (currentSettings) localNotifs.reschedule(currentSettings, pending.length, pending.length + done.length);
+    }, []);
+
+    // Tras una acción optimista trae del servidor los ids reales y el orden.
+    const reconcileToday = useCallback(async () => {
+        const res = await guard(() => api.getToday());
+        if (res?.data) { setToday(res.data); syncSideEffects(res.data, settings); }
+    }, [guard, settings, syncSideEffects]);
+
     const loadAll = useCallback(async () => {
         const me = await guard(() => api.getMe());
-        const set = me?.data?.settings || null;
-        if (set) setSettings(set);
+        const loadedSettings = me?.data?.settings || null;
+        if (loadedSettings) setSettings(loadedSettings);
 
-        const td = await guard(() => api.getToday());
-        if (td?.data) { setToday(td.data); syncSideEffects(td.data, set); }
-        setLoaded(true);
+        const todayRes = await guard(() => api.getToday());
+        if (todayRes?.data) { setToday(todayRes.data); syncSideEffects(todayRes.data, loadedSettings); }
+        setTodayLoaded(true);
 
-        const co = await guard(() => api.getCarryover());
-        setCarryover(co?.data || []);
+        const carryoverRes = await guard(() => api.getCarryover());
+        setCarryover(carryoverRes?.data || []);
 
-        const nt = await guard(() => api.listNotifications());
-        setNotis(nt?.data || []);
+        const notisRes = await guard(() => api.listNotifications());
+        setNotis(notisRes?.data || []);
 
-        if ((co?.data || []).length > 0) setReviewOpen(true);
+        if ((carryoverRes?.data || []).length > 0) setReviewOpen(true);
         localNotifs.getPermissionStatus().then(setNotifStatus);
     }, [guard, syncSideEffects]);
 
     useEffect(() => {
         (async () => {
             await localNotifs.setupCategory();
-            const tk = await api.loadToken();
-            if (tk) {
+            const storedToken = await api.loadToken();
+            if (storedToken) {
                 const me = await api.getMe().catch(() => null);
                 if (me) { setSession('active'); return; }
                 await api.clearToken();
@@ -163,24 +163,24 @@ export default function App() {
     }, [goToLogin]);
 
     useEffect(() => {
-        if (session === 'active') { setLoaded(false); loadAll(); syncDevice(); }
+        if (session === 'active') { setTodayLoaded(false); loadAll(); syncDevice(); }
     }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // La push no identifica una tarea: la acción se aplica a la primera pendiente.
     useEffect(() => {
         if (IS_EXPO_GO || session !== 'active') return;
-        let sub;
+        let subscription;
         try {
-            const N = require('expo-notifications');
-            sub = N.addNotificationResponseReceivedListener(async (resp) => {
-                const action = resp?.actionIdentifier;
+            const Notifications = require('expo-notifications');
+            subscription = Notifications.addNotificationResponseReceivedListener(async (response) => {
+                const action = response?.actionIdentifier;
                 const first = (today.pending || [])[0];
                 if (action === 'DONE' && first) { await guard(() => api.setTaskStatus(first.id, 'done')); }
                 else if (action === 'SNOOZE' && first) { await guard(() => api.snoozeTask(first.id)); }
                 await reconcileToday();
             });
         } catch {}
-        return () => { try { sub && sub.remove(); } catch {} };
+        return () => { try { subscription?.remove(); } catch {} };
     }, [session, today.pending, guard, reconcileToday]);
 
     // Deep links del widget: recordatorios://add abre el formulario.
@@ -191,20 +191,20 @@ export default function App() {
             setScreen('hoy');
         };
         Linking.getInitialURL().then(handle).catch(() => {});
-        const sub = Linking.addEventListener('url', (e) => handle(e?.url));
-        return () => { try { sub && sub.remove(); } catch {} };
+        const subscription = Linking.addEventListener('url', (e) => handle(e?.url));
+        return () => { try { subscription?.remove(); } catch {} };
     }, []);
     useEffect(() => {
         if (session === 'active' && pendingAdd) { setAddOpen(true); setPendingAdd(false); }
     }, [session, pendingAdd]);
 
-    const onContinueEmail = async (em) => {
-        const e = String(em || '').trim().toLowerCase();
-        if (!e) { setAuthError('Ingresá tu email'); return; }
-        setEmail(e); setAuthError(null); setBusy(true);
+    const onContinueEmail = async (rawEmail) => {
+        const normalizedEmail = String(rawEmail || '').trim().toLowerCase();
+        if (!normalizedEmail) { setAuthError('Ingresá tu email'); return; }
+        setEmail(normalizedEmail); setAuthError(null); setBusy(true);
         try {
-            await setItem(EMAIL_KEY, e);
-            const res = await api.hasPin(e);
+            await setItem(EMAIL_KEY, normalizedEmail);
+            const res = await api.hasPin(normalizedEmail);
             if (res?.has_pin) {
                 const localPin = await biometry.getLocalPin();
                 setCanBio(!!localPin && await biometry.hwEnrolled());
@@ -292,68 +292,54 @@ export default function App() {
         await goToLogin();
     };
 
-    const onToggle = (task) => {
-        const done = task.status !== 'done';
-        (done ? haptics.success : haptics.tap)();
+    const updateTodayOptimistically = (transform) => {
         animate();
         setToday((prev) => {
-            const all = [...prev.pending, ...prev.done].map((t) =>
-                t.id === task.id ? { ...t, status: done ? 'done' : 'pending', done_at: done ? new Date().toISOString() : null } : t
-            );
-            const next = splitToday(prev, all);
+            const next = splitToday(prev, transform([...prev.pending, ...prev.done]));
             syncSideEffects(next, settings);
             return next;
         });
+    };
+
+    const onToggle = (task) => {
+        const done = task.status !== 'done';
+        (done ? haptics.success : haptics.tap)();
+        updateTodayOptimistically((all) => all.map((t) =>
+            t.id === task.id ? { ...t, status: done ? 'done' : 'pending', done_at: done ? new Date().toISOString() : null } : t
+        ));
         guard(() => api.setTaskStatus(task.id, done ? 'done' : 'pending')).then(reconcileToday);
     };
 
     const onDelete = (task) => {
         haptics.tapMedium();
-        animate();
-        setToday((prev) => {
-            const all = [...prev.pending, ...prev.done].filter((t) => t.id !== task.id);
-            const next = splitToday(prev, all);
-            syncSideEffects(next, settings);
-            return next;
-        });
+        updateTodayOptimistically((all) => all.filter((t) => t.id !== task.id));
         guard(() => api.deleteTask(task.id)).then(reconcileToday);
     };
 
     const onSnooze = (task) => {
         haptics.tap();
-        animate();
-        setToday((prev) => {
-            const all = [...prev.pending, ...prev.done].filter((t) => t.id !== task.id);
-            const next = splitToday(prev, all);
-            syncSideEffects(next, settings);
-            return next;
-        });
+        updateTodayOptimistically((all) => all.filter((t) => t.id !== task.id));
         guard(() => api.snoozeTask(task.id)).then(reconcileToday);
     };
 
-    const onSubmitAdd = (text, task_date) => {
+    const onSubmitAdd = (text, taskDate) => {
         setAddOpen(false);
         haptics.tap();
-        const isToday = !task_date || task_date === todayISO();
-        if (isToday) {
-            animate();
-            setToday((prev) => {
-                const temp = { id: `tmp-${Date.now()}`, text, status: 'pending', task_date: todayISO() };
-                const next = splitToday(prev, [...prev.pending, ...prev.done, temp]);
-                syncSideEffects(next, settings);
-                return next;
-            });
+        if (!taskDate || taskDate === todayISO()) {
+            updateTodayOptimistically((all) => [
+                ...all,
+                { id: `tmp-${Date.now()}`, text, status: 'pending', task_date: todayISO() },
+            ]);
         }
-        guard(() => api.createTask(text, task_date)).then(reconcileToday);
+        guard(() => api.createTask(text, taskDate)).then(reconcileToday);
     };
 
     const onChangeSettings = async (patch) => {
         const next = { ...(settings || {}), ...patch };
         setSettings(next);
-        const r = await guard(() => api.updateSettings(patch));
-        const eff = r?.data || next;
-        if (r?.data) setSettings(r.data);
-        syncSideEffects(today, eff);
+        const res = await guard(() => api.updateSettings(patch));
+        if (res?.data) setSettings(res.data);
+        syncSideEffects(today, res?.data || next);
     };
 
     const stepCarryover = (id, apiCall) => {
@@ -377,17 +363,22 @@ export default function App() {
     };
 
     const onSimulateReview = async () => {
-        const co = await guard(() => api.getCarryover());
-        setCarryover(co?.data || []);
+        const res = await guard(() => api.getCarryover());
+        setCarryover(res?.data || []);
         setScreen('hoy');
-        if ((co?.data || []).length) setReviewOpen(true);
+        if ((res?.data || []).length) setReviewOpen(true);
+    };
+
+    const reloadNotis = async () => {
+        const res = await guard(() => api.listNotifications());
+        setNotis(res?.data || []);
     };
 
     const onOpenNotis = async () => {
         setNotisOpen(true);
-        const nt = await guard(() => api.listNotifications());
-        setNotis(nt?.data || []);
+        await reloadNotis();
     };
+
     const onMarkAllRead = () => {
         const ids = notis.filter((n) => !n.read_at).map((n) => n.id);
         if (!ids.length) return;
@@ -397,10 +388,8 @@ export default function App() {
     };
 
     const onRefresh = async () => {
-        const r = await guard(() => api.getToday());
-        if (r?.data) { setToday(r.data); syncSideEffects(r.data, settings); }
-        const nt = await guard(() => api.listNotifications());
-        setNotis(nt?.data || []);
+        await reconcileToday();
+        await reloadNotis();
     };
 
     if (!fontsLoaded || session === 'boot') {
@@ -432,7 +421,7 @@ export default function App() {
                     {screen === 'hoy' ? (
                         <HoyScreen
                             data={today}
-                            loading={!loaded}
+                            loading={!todayLoaded}
                             unread={unread}
                             onToggle={onToggle}
                             onSnooze={onSnooze}
