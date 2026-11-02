@@ -1,5 +1,6 @@
 import CONFIG from '../../config/config.js';
 import { successMessage, errorMessage } from '../../utils/messages.js';
+import { tokenFromRequest } from '../../utils/helpers.js';
 import getOrCreateSettings from '../../services/setting/get-or-create.js';
 
 // No hay usuarios locales: las credenciales las valida fichada_api y la identidad es el user_id de su JWT.
@@ -9,29 +10,44 @@ async function forward(path, { method = 'GET', body = null, token = null } = {})
     const headers = {};
     if (body) headers['Content-Type'] = 'application/json';
     if (token) headers.token = token;
-    const r = await fetch(`${FICHADA_API_URL}${path}`, {
+    const response = await fetch(`${FICHADA_API_URL}${path}`, {
         method,
         headers,
         body: body ? JSON.stringify(body) : undefined,
     });
-    const json = await r.json().catch(() => null);
-    return { status: r.status, json };
+    const json = await response.json().catch(() => null);
+    return { status: response.status, json };
 }
 
-function tokenFromReq(req) {
-    const h = req.headers.token;
-    const auth = req.headers.authorization;
-    return h || (typeof auth === 'string' && auth.startsWith('Bearer ') ? auth.slice(7).trim() : null);
-}
+const postToFichada = (path, { invalidResponseMessage, unreachableMessage, sendToken = false }) =>
+    async (req, res) => {
+        try {
+            const { status, json } = await forward(path, {
+                method: 'POST',
+                body: req.body || {},
+                token: sendToken ? tokenFromRequest(req) : null,
+            });
+            return res.status(status).json(json ?? errorMessage({ message: invalidResponseMessage }));
+        } catch (e) {
+            return res.status(502).json(errorMessage({ message: unreachableMessage, extra: { error: e.message } }));
+        }
+    };
 
-export async function login(req, res) {
-    try {
-        const { status, json } = await forward('/auth/login', { method: 'POST', body: req.body || {} });
-        return res.status(status).json(json ?? errorMessage({ message: 'Error de autenticación' }));
-    } catch (e) {
-        return res.status(502).json(errorMessage({ message: 'No se pudo contactar al servicio de autenticación de fichada', extra: { error: e.message } }));
-    }
-}
+export const login = postToFichada('/auth/login', {
+    invalidResponseMessage: 'Error de autenticación',
+    unreachableMessage: 'No se pudo contactar al servicio de autenticación de fichada',
+});
+
+export const loginPin = postToFichada('/auth/login-pin', {
+    invalidResponseMessage: 'No se pudo iniciar sesión',
+    unreachableMessage: 'No se pudo contactar a fichada',
+});
+
+export const setPin = postToFichada('/auth/set-pin', {
+    invalidResponseMessage: 'No se pudo configurar el PIN',
+    unreachableMessage: 'No se pudo contactar a fichada',
+    sendToken: true,
+});
 
 export async function hasPin(req, res) {
     try {
@@ -41,24 +57,6 @@ export async function hasPin(req, res) {
     } catch {
         // Sin respuesta de fichada se asume que no hay PIN: la app pide la contraseña.
         return res.status(200).json(successMessage({ extra: { has_pin: false } }));
-    }
-}
-
-export async function loginPin(req, res) {
-    try {
-        const { status, json } = await forward('/auth/login-pin', { method: 'POST', body: req.body || {} });
-        return res.status(status).json(json ?? errorMessage({ message: 'No se pudo iniciar sesión' }));
-    } catch (e) {
-        return res.status(502).json(errorMessage({ message: 'No se pudo contactar a fichada', extra: { error: e.message } }));
-    }
-}
-
-export async function setPin(req, res) {
-    try {
-        const { status, json } = await forward('/auth/set-pin', { method: 'POST', body: req.body || {}, token: tokenFromReq(req) });
-        return res.status(status).json(json ?? errorMessage({ message: 'No se pudo configurar el PIN' }));
-    } catch (e) {
-        return res.status(502).json(errorMessage({ message: 'No se pudo contactar a fichada', extra: { error: e.message } }));
     }
 }
 

@@ -3,6 +3,8 @@ import Task from '../../models/Task.js';
 import { successMessage, errorMessage } from '../../utils/messages.js';
 import { localDateStr, addDaysStr } from '../../utils/helpers.js';
 
+const findOwnTask = (req) => Task.findOne({ where: { id: req.params.id, user_id: req.user.id } });
+
 export async function listToday(req, res) {
     try {
         const today = localDateStr();
@@ -62,7 +64,7 @@ export async function createTask(req, res) {
 
 export async function updateTask(req, res) {
     try {
-        const task = await Task.findOne({ where: { id: req.params.id, user_id: req.user.id } });
+        const task = await findOwnTask(req);
         if (!task) return res.status(404).json(errorMessage({ message: 'Tarea no encontrada' }));
 
         const updates = {};
@@ -84,7 +86,7 @@ export async function updateTask(req, res) {
 
 export async function snoozeTask(req, res) {
     try {
-        const task = await Task.findOne({ where: { id: req.params.id, user_id: req.user.id } });
+        const task = await findOwnTask(req);
         if (!task) return res.status(404).json(errorMessage({ message: 'Tarea no encontrada' }));
 
         const today = localDateStr();
@@ -100,7 +102,7 @@ export async function snoozeTask(req, res) {
 
 export async function deleteTask(req, res) {
     try {
-        const task = await Task.findOne({ where: { id: req.params.id, user_id: req.user.id } });
+        const task = await findOwnTask(req);
         if (!task) return res.status(404).json(errorMessage({ message: 'Tarea no encontrada' }));
         await task.destroy();
         return res.status(200).json(successMessage({ message: 'Tarea eliminada' }));

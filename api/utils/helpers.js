@@ -38,7 +38,17 @@ export const validate = (validations) => {
     };
 };
 
-const DEFAULT_TZ = 'America/Argentina/Buenos_Aires';
+export const DEFAULT_TZ = 'America/Argentina/Buenos_Aires';
+
+const BEARER_PREFIX = 'Bearer ';
+
+export const tokenFromRequest = (req) => {
+    const { token, authorization } = req.headers;
+    if (token) return token;
+    return typeof authorization === 'string' && authorization.startsWith(BEARER_PREFIX)
+        ? authorization.slice(BEARER_PREFIX.length).trim()
+        : null;
+};
 
 // en-CA formatea la fecha como YYYY-MM-DD.
 export const localDateStr = (tz = DEFAULT_TZ, date = new Date()) =>
