@@ -6,47 +6,49 @@ const LOCAL_GATEWAY = 'http://10.0.2.2';
 const LOCAL_API_HOST = 'recordatorios-api.localhost';
 const USE_LOCAL = !PUBLIC_API;
 const BASE = (PUBLIC_API || LOCAL_GATEWAY).replace(/\/$/, '');
+const REQUEST_TIMEOUT_MS = 15000;
+const TOKEN_KEY = 'recordatorios_token';
+
+let token = null;
 
 function baseHeaders(extra = {}) {
-    const h = { 'Content-Type': 'application/json', ...extra };
-    if (USE_LOCAL) h.Host = LOCAL_API_HOST;
-    return h;
+    const headers = { 'Content-Type': 'application/json', ...extra };
+    if (USE_LOCAL) headers.Host = LOCAL_API_HOST;
+    return headers;
 }
 
-async function tfetch(url, opts = {}, ms = 15000) {
-    const ctrl = new AbortController();
-    const id = setTimeout(() => ctrl.abort(), ms);
+async function fetchWithTimeout(url, options = {}) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
-        return await fetch(url, { ...opts, signal: ctrl.signal });
+        return await fetch(url, { ...options, signal: controller.signal });
     } catch (e) {
         if (e?.name === 'AbortError') throw new Error('Tiempo de espera agotado. Revisá tu conexión.');
         throw new Error('No se pudo conectar con el servidor.');
     } finally {
-        clearTimeout(id);
+        clearTimeout(timeoutId);
     }
 }
 
-let token = null;
-const TOKEN_KEY = 'recordatorios_token';
+async function saveToken(value) {
+    token = value;
+    await setItem(TOKEN_KEY, value);
+}
 
 export async function loadToken() {
     token = await getItem(TOKEN_KEY);
     return token;
 }
-export async function setToken(t) {
-    token = t;
-    await setItem(TOKEN_KEY, t);
-}
+
 export async function clearToken() {
     token = null;
     await deleteItem(TOKEN_KEY);
 }
-export const getCurrentToken = () => token;
 
-async function req(path, opts = {}) {
-    const res = await tfetch(BASE + path, {
-        ...opts,
-        headers: baseHeaders({ token: token || '', ...(opts.headers || {}) }),
+async function request(path, options = {}) {
+    const res = await fetchWithTimeout(BASE + path, {
+        ...options,
+        headers: baseHeaders({ token: token || '', ...(options.headers || {}) }),
     });
     const json = await res.json().catch(() => null);
     if (!res.ok) {
@@ -57,52 +59,38 @@ async function req(path, opts = {}) {
     return json;
 }
 
-export async function login(email, password) {
-    const res = await tfetch(BASE + '/auth/login', {
+async function loginWith(path, credentials, fallbackMessage) {
+    const res = await fetchWithTimeout(BASE + path, {
         method: 'POST',
         headers: baseHeaders(),
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(credentials),
     });
     const json = await res.json().catch(() => null);
-    if (!json?.user?.token) throw new Error(json?.message || 'Credenciales inválidas');
-    await setToken(json.user.token);
-    return json.user;
-}
-export const getMe = () => req('/auth/me');
-
-export const hasPin = (email) => req(`/auth/has-pin?email=${encodeURIComponent(email)}`);
-
-export async function loginPin(email, pin) {
-    const res = await tfetch(BASE + '/auth/login-pin', {
-        method: 'POST',
-        headers: baseHeaders(),
-        body: JSON.stringify({ email, pin }),
-    });
-    const json = await res.json().catch(() => null);
-    if (!json?.user?.token) throw new Error(json?.message || 'PIN incorrecto');
-    await setToken(json.user.token);
+    if (!json?.user?.token) throw new Error(json?.message || fallbackMessage);
+    await saveToken(json.user.token);
     return json.user;
 }
 
-export const setPinRemote = (pin) => req('/auth/set-pin', { method: 'POST', body: JSON.stringify({ pin }) });
+export const login = (email, password) => loginWith('/auth/login', { email, password }, 'Credenciales inválidas');
+export const loginPin = (email, pin) => loginWith('/auth/login-pin', { email, pin }, 'PIN incorrecto');
+export const getMe = () => request('/auth/me');
+export const hasPin = (email) => request(`/auth/has-pin?email=${encodeURIComponent(email)}`);
+export const setPinRemote = (pin) => request('/auth/set-pin', { method: 'POST', body: JSON.stringify({ pin }) });
 
-export const getToday = () => req('/tasks/today');
-export const getCarryover = () => req('/tasks/carryover');
-export const createTask = (text, task_date) =>
-    req('/tasks', { method: 'POST', body: JSON.stringify(task_date ? { text, task_date } : { text }) });
+export const getToday = () => request('/tasks/today');
+export const getCarryover = () => request('/tasks/carryover');
+export const createTask = (text, taskDate) =>
+    request('/tasks', { method: 'POST', body: JSON.stringify(taskDate ? { text, task_date: taskDate } : { text }) });
 export const updateTask = (id, patch) =>
-    req(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(patch) });
+    request(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(patch) });
 export const setTaskStatus = (id, status) => updateTask(id, { status });
-export const snoozeTask = (id) => req(`/tasks/${id}/snooze`, { method: 'POST', body: '{}' });
-export const deleteTask = (id) => req(`/tasks/${id}`, { method: 'DELETE' });
-export const allCarryoverToday = () => req('/tasks/carryover/all-today', { method: 'POST', body: '{}' });
+export const snoozeTask = (id) => request(`/tasks/${id}/snooze`, { method: 'POST', body: '{}' });
+export const deleteTask = (id) => request(`/tasks/${id}`, { method: 'DELETE' });
+export const allCarryoverToday = () => request('/tasks/carryover/all-today', { method: 'POST', body: '{}' });
 
-export const getSettings = () => req('/settings');
-export const updateSettings = (patch) => req('/settings', { method: 'PUT', body: JSON.stringify(patch) });
+export const updateSettings = (patch) => request('/settings', { method: 'PUT', body: JSON.stringify(patch) });
 
-export const registerDevice = (payload) => req('/devices/register', { method: 'POST', body: JSON.stringify(payload) });
-export const updatePushToken = (device_uuid, push_token) =>
-    req('/devices/push-token', { method: 'PATCH', body: JSON.stringify({ device_uuid, push_token }) });
+export const registerDevice = (payload) => request('/devices/register', { method: 'POST', body: JSON.stringify(payload) });
 
-export const listNotifications = () => req('/notifications');
-export const markNotificationRead = (id) => req(`/notifications/${id}/read`, { method: 'PATCH', body: '{}' });
+export const listNotifications = () => request('/notifications');
+export const markNotificationRead = (id) => request(`/notifications/${id}/read`, { method: 'PATCH', body: '{}' });
