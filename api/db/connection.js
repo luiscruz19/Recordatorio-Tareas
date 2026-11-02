@@ -1,5 +1,4 @@
 import sequelize from './sequelize.js';
-// sync() solo conoce los modelos ya importados.
 import '../models/index.js';
 
 (async () => {
