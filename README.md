@@ -45,3 +45,12 @@ cd app && npx eas-cli build -p android --profile development
 ## Despliegue
 
 Ver [`DEPLOY.md`](DEPLOY.md).
+
+## Firebase
+
+`app/google-services.json` no se versiona. Para compilar la app, copialo en `app/`. En EAS, cargalo como variable de tipo archivo:
+
+```bash
+cd app
+eas env:create --name GOOGLE_SERVICES_JSON --type file --value ./google-services.json --visibility secret
+```

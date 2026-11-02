@@ -15,7 +15,6 @@ help:
 	@echo "  make app         Arranca la app (Expo / Metro)"
 	@echo ""
 	@echo "Acceso: api http://recordatorios-api.localhost"
-	@echo "Login: con un usuario de fichada (p.ej. admin@fichada.com / CAMBIAR_ANTES_DE_USAR)."
 	@echo "Requiere /opt/shared y fichada levantados."
 
 # SECRET_KEY tiene que coincidir con la de fichada: se revisa a mano.

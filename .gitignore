@@ -21,3 +21,6 @@ dist/
 
 # Artefactos de WSL/descargas
 *Zone.Identifier
+
+# Firebase: se entrega por EAS como variable de tipo archivo
+google-services.json
