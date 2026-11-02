@@ -1,6 +1,14 @@
 import getOrCreateSettings from '../../services/setting/get-or-create.js';
 import { successMessage, errorMessage } from '../../utils/messages.js';
 
+const UPDATABLE_FIELDS = [
+    'enabled', 'notif_enabled', 'timezone',
+    'plan_enabled', 'plan_window_start', 'plan_window_end',
+    'plan_interval_minutes', 'plan_interval_loaded_minutes',
+    'close_enabled', 'close_window_start', 'close_window_end', 'close_interval_minutes',
+    'interval_minutes', 'window_start', 'window_end',
+];
+
 export async function getSettings(req, res) {
     try {
         const settings = await getOrCreateSettings(req.user.id);
@@ -16,16 +24,9 @@ export async function updateSettings(req, res) {
     try {
         const settings = await getOrCreateSettings(req.user.id);
 
-        const fields = [
-            'enabled', 'notif_enabled', 'timezone',
-            'plan_enabled', 'plan_window_start', 'plan_window_end',
-            'plan_interval_minutes', 'plan_interval_loaded_minutes',
-            'close_enabled', 'close_window_start', 'close_window_end', 'close_interval_minutes',
-            'interval_minutes', 'window_start', 'window_end',
-        ];
         const updates = {};
-        for (const f of fields) {
-            if (req.body[f] !== undefined) updates[f] = req.body[f];
+        for (const field of UPDATABLE_FIELDS) {
+            if (req.body[field] !== undefined) updates[field] = req.body[field];
         }
 
         await settings.update(updates);

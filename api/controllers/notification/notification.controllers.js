@@ -1,12 +1,14 @@
 import Notification from '../../models/Notification.js';
 import { successMessage, errorMessage } from '../../utils/messages.js';
 
+const MAX_LISTED_NOTIFICATIONS = 100;
+
 export async function listMyNotifications(req, res) {
     try {
         const notifications = await Notification.findAll({
             where: { user_id: req.user.id },
             order: [['createdAt', 'DESC']],
-            limit: 100,
+            limit: MAX_LISTED_NOTIFICATIONS,
         });
         return res.status(200).json(successMessage({ extra: { data: notifications } }));
     } catch (error) {
