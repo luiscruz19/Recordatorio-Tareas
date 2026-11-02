@@ -3,7 +3,7 @@ import Device from '../../models/Device.js';
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
 // categoryId habilita las acciones de la notificación (marcar hecha, posponer) declaradas en la app.
-export async function sendExpoPush(token, { title, body, data = {}, categoryId = null }) {
+async function sendExpoPush(token, { title, body, data = {}, categoryId = null }) {
     if (!token) return { sent: false, reason: 'sin push token' };
     try {
         const res = await fetch(EXPO_PUSH_URL, {

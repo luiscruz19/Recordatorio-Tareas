@@ -1,22 +1,11 @@
 const messages = {
     generic: {
-        fields_required: 'Todos los campos requeridos deben ser completados',
-        invalid_status: 'El estado proporcionado no es válido',
         invalid_enum_value: 'El valor proporcionado no está permitido',
-        id_required: 'El ID es requerido',
-        invalid_date_format: 'Formato de fecha inválido',
-        fields_empty: 'Campos vacíos',
         token_expirated: 'El token ingresado ha expirado.',
         token_invalid: 'El token ingresado no es válido.',
         token_not_found: 'El token ingresado no fue encontrado.',
-        credential_invalid: 'Credenciales inválidas.',
-        autorization_required: 'Autorización requerida.',
     },
     error: {
-        general: {
-            device_exists: 'Este dispositivo ya está vinculado',
-        },
-
         task: {
             fields_empty: {
                 user_id: 'El usuario no puede estar vacío',

@@ -13,11 +13,3 @@ export {
     Device,
     Notification,
 };
-
-export default {
-    sequelize,
-    Task,
-    ReminderSetting,
-    Device,
-    Notification,
-};

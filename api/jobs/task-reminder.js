@@ -35,7 +35,7 @@ async function emit(userId, { type, title, body, data, categoryId }) {
 }
 
 // El push del servidor cubre la app cerrada y otros dispositivos; la app además agenda avisos locales.
-export async function runTaskReminder() {
+async function runTaskReminder() {
     const prefs = await ReminderSetting.findAll({ where: { enabled: true, notif_enabled: true } });
 
     let notified = 0;

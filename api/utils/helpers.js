@@ -38,9 +38,6 @@ export const validate = (validations) => {
     };
 };
 
-export const isEmpty = (value) =>
-    (value === null || value === undefined || value === '');
-
 const DEFAULT_TZ = 'America/Argentina/Buenos_Aires';
 
 // en-CA formatea la fecha como YYYY-MM-DD.
