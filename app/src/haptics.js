@@ -1,26 +1,28 @@
-import Constants from 'expo-constants';
+import { IS_EXPO_GO } from './runtime';
 
 // Carga perezosa: no rompe en Expo Go ni en bundles OTA sobre builds sin el módulo nativo.
-const IS_EXPO_GO = Constants.executionEnvironment === 'storeClient';
-let H = null;
-let tried = false;
-function mod() {
-    if (tried) return H;
-    tried = true;
+let hapticsModule = null;
+let loadAttempted = false;
+
+function loadHaptics() {
+    if (loadAttempted) return hapticsModule;
+    loadAttempted = true;
     if (IS_EXPO_GO) return null;
-    try { H = require('expo-haptics'); } catch { H = null; }
-    return H;
+    try { hapticsModule = require('expo-haptics'); } catch { hapticsModule = null; }
+    return hapticsModule;
 }
 
 export function tap() {
-    const h = mod();
-    if (h) h.impactAsync(h.ImpactFeedbackStyle.Light).catch(() => {});
+    const haptics = loadHaptics();
+    if (haptics) haptics.impactAsync(haptics.ImpactFeedbackStyle.Light).catch(() => {});
 }
+
 export function tapMedium() {
-    const h = mod();
-    if (h) h.impactAsync(h.ImpactFeedbackStyle.Medium).catch(() => {});
+    const haptics = loadHaptics();
+    if (haptics) haptics.impactAsync(haptics.ImpactFeedbackStyle.Medium).catch(() => {});
 }
+
 export function success() {
-    const h = mod();
-    if (h) h.notificationAsync(h.NotificationFeedbackType.Success).catch(() => {});
+    const haptics = loadHaptics();
+    if (haptics) haptics.notificationAsync(haptics.NotificationFeedbackType.Success).catch(() => {});
 }

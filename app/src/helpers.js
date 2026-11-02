@@ -4,32 +4,31 @@ const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', '
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
     'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
-export const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+const capitalize = (text) => (text ? text.charAt(0).toUpperCase() + text.slice(1) : text);
 
-export function fmtDateLong(d = new Date()) {
-    return cap(`${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]}`);
-}
-
-export function fmtDateShort(dStr) {
-    const d = parseDate(dStr);
-    if (!d) return '';
-    return `${d.getDate()} ${MESES[d.getMonth()].slice(0, 3)}`;
-}
-
-export function todayISO() {
-    const d = new Date();
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+export function fmtDateLong(date = new Date()) {
+    return capitalize(`${DIAS[date.getDay()]} ${date.getDate()} de ${MESES[date.getMonth()]}`);
 }
 
 // Mediodía local para que el huso no cambie la fecha.
-export function parseDate(dStr) {
-    if (!dStr) return null;
-    const s = String(dStr).slice(0, 10);
-    const [y, m, day] = s.split('-').map(Number);
-    if (!y || !m || !day) return null;
-    return new Date(y, m - 1, day, 12, 0, 0);
+function parseDate(dateStr) {
+    if (!dateStr) return null;
+    const [year, month, day] = String(dateStr).slice(0, 10).split('-').map(Number);
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day, 12, 0, 0);
 }
 
-export function toISO(d) {
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+export function fmtDateShort(dateStr) {
+    const date = parseDate(dateStr);
+    if (!date) return '';
+    return `${date.getDate()} ${MESES[date.getMonth()].slice(0, 3)}`;
 }
+
+export function toISO(date) {
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+export const todayISO = () => toISO(new Date());
+
+export const pendingCountLabel = (count) =>
+    `Te ${count === 1 ? 'queda' : 'quedan'} ${count} ${count === 1 ? 'tarea' : 'tareas'}`;

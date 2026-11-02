@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text, TextInput, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Delete, Fingerprint, ChevronLeft } from 'lucide-react-native';
 import { C, F, R, GRAD_BRAND, shadowFab } from '../theme';
 import { Isotipo } from '../components';
+
+const PIN_LENGTH = 4;
+const PIN_DOTS = Array.from({ length: PIN_LENGTH }, (_, i) => i);
+const PIN_SUBMIT_DELAY_MS = 120;
 
 function Brand({ subtitle }) {
     return (
@@ -76,11 +80,11 @@ function PinPad({ onDigit, onDelete }) {
 export function PinScreen({ mode, email, error, onComplete, onBio, onBack }) {
     const [pin, setPin] = useState('');
     const titles = { create: 'Creá tu PIN', confirm: 'Repetí el PIN', login: 'Ingresá tu PIN' };
-    function digit(d) {
-        const next = (pin + d).slice(0, 4);
+    function addDigit(digit) {
+        const next = (pin + digit).slice(0, PIN_LENGTH);
         setPin(next);
-        if (next.length === 4) {
-            setTimeout(() => { onComplete(next); setPin(''); }, 120);
+        if (next.length === PIN_LENGTH) {
+            setTimeout(() => { onComplete(next); setPin(''); }, PIN_SUBMIT_DELAY_MS);
         }
     }
     return (
@@ -93,12 +97,12 @@ export function PinScreen({ mode, email, error, onComplete, onBio, onBack }) {
             </View>
 
             <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginBottom: 34 }}>
-                {[0, 1, 2, 3].map((i) => (
+                {PIN_DOTS.map((i) => (
                     <View key={i} style={{ width: 16, height: 16, borderRadius: 8, borderWidth: 1.5, borderColor: i < pin.length ? C.accent : C.circle, backgroundColor: i < pin.length ? C.accent : 'transparent' }} />
                 ))}
             </View>
 
-            <PinPad onDigit={digit} onDelete={() => setPin((p) => p.slice(0, -1))} />
+            <PinPad onDigit={addDigit} onDelete={() => setPin((p) => p.slice(0, -1))} />
 
             {mode === 'login' && onBio ? (
                 <Pressable onPress={onBio} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, marginTop: 26 }}>

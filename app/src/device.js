@@ -1,11 +1,8 @@
 import { Platform } from 'react-native';
 import * as ExpoDevice from 'expo-device';
-import Constants from 'expo-constants';
+import { IS_EXPO_GO } from './runtime';
 import { getItem, setItem } from './storage';
 import { registerDevice } from './api';
-
-// En Expo Go (SDK 53+) las push de Android no están disponibles.
-const IS_EXPO_GO = Constants.executionEnvironment === 'storeClient';
 
 const UUID_KEY = 'recordatorios_device_uuid';
 
@@ -19,14 +16,15 @@ async function getDeviceUuid() {
 }
 
 async function getPushToken() {
+    // En Expo Go (SDK 53+) las push de Android no están disponibles.
     if (IS_EXPO_GO) return null;
     const Notifications = require('expo-notifications');
     try {
         let { status } = await Notifications.getPermissionsAsync();
         if (status !== 'granted') status = (await Notifications.requestPermissionsAsync()).status;
         if (status !== 'granted') return null;
-        const tok = await Notifications.getExpoPushTokenAsync();
-        return tok?.data || null;
+        const pushToken = await Notifications.getExpoPushTokenAsync();
+        return pushToken?.data || null;
     } catch {
         return null;
     }
@@ -42,7 +40,7 @@ export async function syncDevice() {
             model: ExpoDevice.modelName || null,
             push_token,
         });
-    } catch (e) {
+    } catch {
         // Sin conexión o sin permiso: las notificaciones locales cubren el recordatorio.
     }
 }

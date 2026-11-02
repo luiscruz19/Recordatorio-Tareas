@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text, Pressable, ScrollView, Switch, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { ChevronLeft, ChevronRight, Clock3, Bell, RotateCcw, Sunrise, Moon, Lock, LogOut } from 'lucide-react-native';
 import { C, F, R, GRAD_HEADER, shadowHeader, shadowCard } from '../theme';
+import { pad } from '../helpers';
 
 const INTERVALS = [
     { value: 30, label: '30 min' },
@@ -26,8 +27,7 @@ function timeToDate(t) {
     return d;
 }
 function dateToTime(d) {
-    const p = (n) => String(n).padStart(2, '0');
-    return `${p(d.getHours())}:${p(d.getMinutes())}:00`;
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
 }
 function timeLabel(t) {
     return String(t || '').slice(0, 5);
@@ -43,15 +43,8 @@ export function AjustesScreen({ settings, onBack, onChange, onSimulateReview, no
     const planOn = s.plan_enabled !== false;
     const closeOn = s.close_enabled !== false;
 
-    const pickerValue = picker
-        ? (picker.section === 'plan'
-            ? (picker.field === 'start' ? s.plan_window_start : s.plan_window_end)
-            : (picker.field === 'start' ? s.close_window_start : s.close_window_end))
-        : null;
-    const applyPicker = (time) => {
-        const key = `${picker.section}_window_${picker.field}`;
-        onChange({ [key]: time });
-    };
+    const pickerKey = picker && `${picker.section}_window_${picker.field}`;
+    const pickerValue = picker ? s[pickerKey] : null;
 
     return (
         <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -163,7 +156,7 @@ export function AjustesScreen({ settings, onBack, onChange, onSimulateReview, no
                     mode="time" is24Hour
                     onChange={(e, d) => {
                         setPicker(Platform.OS === 'ios' ? picker : null);
-                        if (d) applyPicker(dateToTime(d));
+                        if (d) onChange({ [pickerKey]: dateToTime(d) });
                     }}
                 />
             )}

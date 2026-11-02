@@ -1,39 +1,46 @@
-import Constants from 'expo-constants';
+import { IS_EXPO_GO } from './runtime';
+import { pendingCountLabel } from './helpers';
 
 // Avisos locales; el push del servidor cubre la app cerrada y otros dispositivos.
-const IS_EXPO_GO = Constants.executionEnvironment === 'storeClient';
 const CATEGORY = 'TASK_REMINDER';
+const MIN_INTERVAL_MINUTES = 5;
+const DEFAULT_PLAN_INTERVAL_MINUTES = 30;
+const DEFAULT_CLOSE_INTERVAL_MINUTES = 60;
+// Topes para no saturar la cola de notificaciones del sistema operativo.
+const MAX_PLAN_REMINDERS = 8;
+const MAX_CLOSE_REMINDERS = 16;
 
-let N = null;
-function load() {
+let notificationsModule = null;
+
+function loadNotifications() {
     if (IS_EXPO_GO) return null;
-    if (!N) { try { N = require('expo-notifications'); } catch { N = null; } }
-    return N;
+    if (!notificationsModule) {
+        try { notificationsModule = require('expo-notifications'); } catch { notificationsModule = null; }
+    }
+    return notificationsModule;
 }
 
-function toMin(t) {
-    if (!t) return 0;
-    const [h, m] = String(t).split(':').map(Number);
-    return (h || 0) * 60 + (m || 0);
+function timeToMinutes(time) {
+    if (!time) return 0;
+    const [hours, minutes] = String(time).split(':').map(Number);
+    return (hours || 0) * 60 + (minutes || 0);
 }
 
 export async function getPermissionStatus() {
-    const n = load();
-    if (!n) return 'unsupported';
+    const notifications = loadNotifications();
+    if (!notifications) return 'unsupported';
     try {
-        const { status } = await n.getPermissionsAsync();
+        const { status } = await notifications.getPermissionsAsync();
         return status;
     } catch {
         return 'unsupported';
     }
 }
 
-export async function ensurePermission() {
-    const n = load();
-    if (!n) return false;
+async function ensurePermission(notifications) {
     try {
-        let { status } = await n.getPermissionsAsync();
-        if (status !== 'granted') status = (await n.requestPermissionsAsync()).status;
+        let { status } = await notifications.getPermissionsAsync();
+        if (status !== 'granted') status = (await notifications.requestPermissionsAsync()).status;
         return status === 'granted';
     } catch {
         return false;
@@ -41,39 +48,37 @@ export async function ensurePermission() {
 }
 
 export async function setupCategory() {
-    const n = load();
-    if (!n) return;
+    const notifications = loadNotifications();
+    if (!notifications) return;
     try {
-        await n.setNotificationCategoryAsync(CATEGORY, [
+        await notifications.setNotificationCategoryAsync(CATEGORY, [
             { identifier: 'DONE', buttonTitle: 'Marcar hecha', options: { opensAppToForeground: true } },
             { identifier: 'SNOOZE', buttonTitle: 'Posponer', options: { opensAppToForeground: false } },
         ]);
     } catch {}
 }
 
-// budget limita los avisos agendados para no saturar la cola del sistema operativo.
-async function scheduleWindow(n, { startMin, endMin, interval, title, body, data, nowMin, now, budget }) {
+async function scheduleWindow(notifications, { startMin, endMin, interval, title, body, data, nowMin, now, maxReminders }) {
     let scheduled = 0;
-    for (let m = startMin; m <= endMin && scheduled < budget; m += interval) {
-        if (m <= nowMin) continue;
+    for (let minute = startMin; minute <= endMin && scheduled < maxReminders; minute += interval) {
+        if (minute <= nowMin) continue;
         const date = new Date(now);
-        date.setHours(Math.floor(m / 60), m % 60, 0, 0);
-        await n.scheduleNotificationAsync({
+        date.setHours(Math.floor(minute / 60), minute % 60, 0, 0);
+        await notifications.scheduleNotificationAsync({
             content: { title, body, categoryIdentifier: CATEGORY, data, sound: 'default' },
             trigger: date,
         });
         scheduled++;
     }
-    return scheduled;
 }
 
 export async function reschedule(settings, pendingCount, loadedCount = 0) {
-    const n = load();
-    if (!n) return;
+    const notifications = loadNotifications();
+    if (!notifications) return;
     try {
-        await n.cancelAllScheduledNotificationsAsync();
+        await notifications.cancelAllScheduledNotificationsAsync();
         if (!settings?.enabled || !settings?.notif_enabled) return;
-        const granted = await ensurePermission();
+        const granted = await ensurePermission(notifications);
         if (!granted) return;
 
         const now = new Date();
@@ -81,29 +86,31 @@ export async function reschedule(settings, pendingCount, loadedCount = 0) {
 
         // A diferencia del push del servidor, este aviso no insiste si ya hay tareas cargadas.
         if (settings.plan_enabled !== false && !loadedCount) {
-            await scheduleWindow(n, {
-                startMin: toMin(settings.plan_window_start), endMin: toMin(settings.plan_window_end),
-                interval: Math.max(5, Number(settings.plan_interval_minutes) || 30),
+            await scheduleWindow(notifications, {
+                startMin: timeToMinutes(settings.plan_window_start),
+                endMin: timeToMinutes(settings.plan_window_end),
+                interval: Math.max(MIN_INTERVAL_MINUTES, Number(settings.plan_interval_minutes) || DEFAULT_PLAN_INTERVAL_MINUTES),
                 title: 'Planificá tu día',
                 body: 'Todavía no cargaste tareas para hoy. Planificá tu día ✍️',
-                data: { type: 'plan_reminder' }, nowMin, now, budget: 8,
+                data: { type: 'plan_reminder' },
+                nowMin,
+                now,
+                maxReminders: MAX_PLAN_REMINDERS,
             });
         }
 
         if (settings.close_enabled !== false && pendingCount) {
-            await scheduleWindow(n, {
-                startMin: toMin(settings.close_window_start), endMin: toMin(settings.close_window_end),
-                interval: Math.max(5, Number(settings.close_interval_minutes) || 60),
+            await scheduleWindow(notifications, {
+                startMin: timeToMinutes(settings.close_window_start),
+                endMin: timeToMinutes(settings.close_window_end),
+                interval: Math.max(MIN_INTERVAL_MINUTES, Number(settings.close_interval_minutes) || DEFAULT_CLOSE_INTERVAL_MINUTES),
                 title: 'Tareas pendientes',
-                body: `Te ${pendingCount === 1 ? 'queda' : 'quedan'} ${pendingCount} ${pendingCount === 1 ? 'tarea' : 'tareas'} para hoy.`,
-                data: { type: 'task_reminder' }, nowMin, now, budget: 16,
+                body: `${pendingCountLabel(pendingCount)} para hoy.`,
+                data: { type: 'task_reminder' },
+                nowMin,
+                now,
+                maxReminders: MAX_CLOSE_REMINDERS,
             });
         }
     } catch { /* sin avisos locales queda el push del servidor */ }
-}
-
-export async function cancelAll() {
-    const n = load();
-    if (!n) return;
-    try { await n.cancelAllScheduledNotificationsAsync(); } catch {}
 }

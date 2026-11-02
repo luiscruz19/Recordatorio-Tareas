@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, TextInput, Pressable, Modal, Keyboard, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -6,21 +6,24 @@ import { Plus } from 'lucide-react-native';
 import { C, F, R } from '../theme';
 import { fmtDateShort, toISO, todayISO } from '../helpers';
 
+const MS_PER_DAY = 86400000;
+const tomorrow = () => new Date(Date.now() + MS_PER_DAY);
+
 function useKeyboardHeight() {
-    const [h, setH] = useState(0);
+    const [height, setHeight] = useState(0);
     useEffect(() => {
-        const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-        const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-        const s = Keyboard.addListener(showEvt, (e) => setH(e.endCoordinates?.height || 0));
-        const hd = Keyboard.addListener(hideEvt, () => setH(0));
-        return () => { s.remove(); hd.remove(); };
+        const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+        const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+        const showSubscription = Keyboard.addListener(showEvent, (e) => setHeight(e.endCoordinates?.height || 0));
+        const hideSubscription = Keyboard.addListener(hideEvent, () => setHeight(0));
+        return () => { showSubscription.remove(); hideSubscription.remove(); };
     }, []);
-    return h;
+    return height;
 }
 
 export function AgregarSheet({ visible, onClose, onSubmit }) {
     const insets = useSafeAreaInsets();
-    const kb = useKeyboardHeight();
+    const keyboardHeight = useKeyboardHeight();
     const [text, setText] = useState('');
     const [future, setFuture] = useState(false);
     const [date, setDate] = useState(null);
@@ -36,14 +39,13 @@ export function AgregarSheet({ visible, onClose, onSubmit }) {
 
     const submit = () => {
         if (!canSubmit) return;
-        let task_date = null;
+        let taskDate = null;
         if (future) {
-            const d = date || new Date(Date.now() + 86400000);
-            task_date = toISO(d);
-            if (task_date <= todayISO()) task_date = toISO(new Date(Date.now() + 86400000));
+            taskDate = toISO(date || tomorrow());
+            if (taskDate <= todayISO()) taskDate = toISO(tomorrow());
         }
         Keyboard.dismiss();
-        onSubmit(text.trim(), task_date);
+        onSubmit(text.trim(), taskDate);
     };
 
     return (
@@ -53,8 +55,8 @@ export function AgregarSheet({ visible, onClose, onSubmit }) {
                 <View style={{
                     backgroundColor: C.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30,
                     paddingHorizontal: 22, paddingTop: 12,
-                    marginBottom: kb,
-                    paddingBottom: kb > 0 ? 18 : 24 + insets.bottom,
+                    marginBottom: keyboardHeight,
+                    paddingBottom: keyboardHeight > 0 ? 18 : 24 + insets.bottom,
                 }}>
                     <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: C.bgTint2, alignSelf: 'center', marginBottom: 20 }} />
                     <Text style={{ fontFamily: F.bold, fontSize: 22, color: C.ink, letterSpacing: -0.3 }}>Nueva tarea</Text>
@@ -91,9 +93,9 @@ export function AgregarSheet({ visible, onClose, onSubmit }) {
 
                     {showPicker && (
                         <DateTimePicker
-                            value={date || new Date(Date.now() + 86400000)}
+                            value={date || tomorrow()}
                             mode="date"
-                            minimumDate={new Date(Date.now() + 86400000)}
+                            minimumDate={tomorrow()}
                             onChange={(e, d) => { setShowPicker(Platform.OS === 'ios'); if (d) setDate(d); }}
                         />
                     )}

@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { View, Text, Pressable, ScrollView, RefreshControl, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bell, Settings, Plus, Check, Clock3, Trash2 } from 'lucide-react-native';
 import { C, F, R, GRAD_HEADER, GRAD_FAB, shadowHeader, shadowCard, shadowFab } from '../theme';
 import { Ring } from '../components';
-import { fmtDateLong } from '../helpers';
+import { fmtDateLong, pendingCountLabel } from '../helpers';
 
 export function HoyScreen({ data, loading = false, onToggle, onSnooze, onDelete, onAdd, onOpenSettings, onOpenNotis, onRefresh, unread = 0 }) {
     const insets = useSafeAreaInsets();
@@ -23,7 +23,7 @@ export function HoyScreen({ data, loading = false, onToggle, onSnooze, onDelete,
     if (loading) progressLabel = 'Cargando tus tareas…';
     else if (total === 0) progressLabel = 'Sin tareas para hoy';
     else if (pending.length === 0) progressLabel = '¡Completaste todo!';
-    else progressLabel = `Te ${pending.length === 1 ? 'queda' : 'quedan'} ${pending.length} ${pending.length === 1 ? 'tarea' : 'tareas'} por hacer`;
+    else progressLabel = `${pendingCountLabel(pending.length)} por hacer`;
 
     return (
         <View style={{ flex: 1, backgroundColor: C.bg }}>
