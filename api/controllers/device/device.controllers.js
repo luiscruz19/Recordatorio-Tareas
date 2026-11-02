@@ -1,7 +1,7 @@
 import Device from '../../models/Device.js';
 import { successMessage, errorMessage } from '../../utils/messages.js';
 
-// Un device_uuid ya registrado pasa al usuario que lo vincula ahora.
+// Un device_uuid ya registrado se reasigna al usuario autenticado.
 export async function registerDevice(req, res) {
     try {
         const { device_uuid, platform, model, push_token } = req.body;

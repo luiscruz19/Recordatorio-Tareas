@@ -4,7 +4,6 @@ import validateToken from '../../middlewares/validate-token.js';
 
 const auth = Router();
 
-// Credenciales delegadas a fichada_api: mismos usuarios y mismo PIN.
 auth.post('/login', login);
 auth.post('/login-pin', loginPin);
 auth.get('/has-pin', hasPin);

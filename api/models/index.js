@@ -1,5 +1,4 @@
-// sync() crea solo las tablas de los modelos importados. Sin tabla de usuarios ni asociaciones:
-// cada entidad se filtra por el user_id del JWT de fichada.
+// Se importan para que sync() cree sus tablas. No hay tabla de usuarios: se filtra por el user_id del JWT.
 import './Task.js';
 import './ReminderSetting.js';
 import './Device.js';
