@@ -1,7 +1,4 @@
-/**
- * Respuestas estándar de la API: { status: 1, ... } éxito | { status: 0, ... } error.
- * En los errores se descarta el campo `error` de `extra` para no exponer detalles técnicos.
- */
+// Descarta extra.error para no exponer detalles técnicos al cliente.
 export const errorMessage = ({ extra = null, message = null, code = null }) => {
     let safeExtra = null;
     if (extra) {

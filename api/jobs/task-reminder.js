@@ -6,10 +6,9 @@ import ReminderSetting from '../models/ReminderSetting.js';
 import { sendPushToUser } from '../services/notification/send-push.js';
 import { localDateStr, localMinutes, timeToMinutes } from '../utils/helpers.js';
 
-// Cada cuánto corre el scheduler (no es el intervalo del usuario; ese vive en sus ajustes).
+// Cadencia del scheduler; el intervalo de cada usuario vive en sus ajustes.
 const TICK = process.env.TASK_REMINDER_CRON || '*/15 * * * *';
 
-/** ¿Estamos dentro de la franja [start, end] en minutos locales? */
 function inWindow(mins, startStr, endStr) {
     const start = timeToMinutes(String(startStr));
     const end = timeToMinutes(String(endStr));
@@ -17,7 +16,6 @@ function inWindow(mins, startStr, endStr) {
     return mins >= start && mins <= end;
 }
 
-/** ¿Ya se envió una notificación de `type` dentro de los últimos `intervalMin` minutos? */
 async function sentRecently(userId, type, intervalMin) {
     const since = new Date(Date.now() - intervalMin * 60 * 1000);
     const already = await Notification.findOne({
@@ -26,7 +24,6 @@ async function sentRecently(userId, type, intervalMin) {
     return !!already;
 }
 
-/** Crea la Notification, dispara el push y sella el estado (sent/failed). */
 async function emit(userId, { type, title, body, data, categoryId }) {
     const notif = await Notification.create({ user_id: userId, type, title, body, status: 'pending' });
     const result = await sendPushToUser(userId, { title, body, data, categoryId });
@@ -37,18 +34,7 @@ async function emit(userId, { type, title, body, data, categoryId }) {
     return result.sent;
 }
 
-/**
- * Recorre a cada usuario con recordatorios habilitados y evalúa dos recordatorios
- * independientes (cada uno respeta su franja, su intervalo y su propio dedupe):
- *
- *  - PLANIFICACIÓN (mañana): si NO cargó ninguna tarea PARA HOY, empuja a planificar
- *    cada `plan_interval_minutes`. Una vez que cargó ≥1 tarea para hoy sigue avisando,
- *    pero espaciado a `plan_interval_loaded_minutes`.
- *  - CIERRE (tarde): si quedan tareas pendientes para hoy, recuerda cerrarlas cada
- *    `close_interval_minutes`, con acciones marcar-hecha / posponer.
- *
- * Es el lado servidor del esquema híbrido (la app además agenda notificaciones locales).
- */
+// El push del servidor cubre la app cerrada y otros dispositivos; la app además agenda avisos locales.
 export async function runTaskReminder() {
     const prefs = await ReminderSetting.findAll({ where: { enabled: true, notif_enabled: true } });
 
@@ -58,9 +44,8 @@ export async function runTaskReminder() {
         const mins = localMinutes(tz);
         const today = localDateStr(tz);
 
-        // ---------- PLANIFICACIÓN (mañana) ----------
         if (pref.plan_enabled && inWindow(mins, pref.plan_window_start, pref.plan_window_end)) {
-            // Tareas cargadas PARA HOY (pending o done); las de días anteriores NO cuentan.
+            // Cuentan las pendientes y hechas de hoy; las de días anteriores no.
             const loadedToday = await Task.count({
                 where: { user_id: pref.user_id, task_date: today },
             });
@@ -83,7 +68,6 @@ export async function runTaskReminder() {
             }
         }
 
-        // ---------- CIERRE (tarde) ----------
         if (pref.close_enabled && inWindow(mins, pref.close_window_start, pref.close_window_end)) {
             const pending = await Task.count({
                 where: { user_id: pref.user_id, status: 'pending', task_date: today },

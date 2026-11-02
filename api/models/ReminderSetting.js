@@ -2,17 +2,6 @@ import { DataTypes } from 'sequelize';
 import messages from '../config/messages.js';
 import sequelize from '../db/sequelize.js';
 
-/**
- * Ajustes de recordatorio por usuario (una fila por user_id).
- *
- * Dos recordatorios independientes, cada uno con su franja e intervalo:
- *  - PLANIFICACIÓN (mañana): empuja a cargar las tareas del día. Sigue avisando aunque
- *    ya hayas cargado alguna PARA HOY, pero con un intervalo más largo (plan_interval_loaded_minutes).
- *  - CIERRE (tarde): recuerda cerrar las tareas que quedan pendientes para hoy.
- *
- * Los campos legacy `interval_minutes` / `window_start` / `window_end` quedan por
- * compatibilidad de datos; el cron ya no los usa.
- */
 const ReminderSetting = sequelize.define('reminder_settings', {
     id: {
         type: DataTypes.INTEGER,
@@ -33,8 +22,6 @@ const ReminderSetting = sequelize.define('reminder_settings', {
         defaultValue: true,
         comment: 'Interruptor maestro: activa/desactiva ambos recordatorios'
     },
-
-    // ---- Recordatorio de PLANIFICACIÓN (mañana) ----
     plan_enabled: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
@@ -65,8 +52,6 @@ const ReminderSetting = sequelize.define('reminder_settings', {
         defaultValue: 90,
         comment: 'Intervalo (más largo) una vez que cargaste ≥1 tarea para hoy'
     },
-
-    // ---- Recordatorio de CIERRE (tarde) ----
     close_enabled: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
@@ -91,8 +76,6 @@ const ReminderSetting = sequelize.define('reminder_settings', {
         defaultValue: 60,
         comment: 'Cada cuántos minutos recordar cerrar tareas pendientes'
     },
-
-    // ---- Legacy (sin uso en el cron; se conservan por compatibilidad de datos) ----
     interval_minutes: {
         type: DataTypes.INTEGER,
         allowNull: false,

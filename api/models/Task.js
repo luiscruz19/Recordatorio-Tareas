@@ -2,13 +2,7 @@ import { DataTypes } from 'sequelize';
 import messages from '../config/messages.js';
 import sequelize from '../db/sequelize.js';
 
-/**
- * Tarea del día, SIN hora. `task_date` es el día para el que es (DATEONLY).
- *  - "Hoy"        = status pending && task_date == hoy
- *  - "Carry-over" = status pending && task_date <  hoy  (van a la revisión obligatoria)
- *  - "Otro día"   = task_date > hoy
- * Se completa marcándola done (done_at sella el momento). Soft-delete (paranoid).
- */
+// Carry-over: pendiente de un día anterior; va a la revisión obligatoria de inicio del día.
 const Task = sequelize.define('tasks', {
     id: {
         type: DataTypes.INTEGER,

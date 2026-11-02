@@ -1,7 +1,6 @@
 import getOrCreateSettings from '../../services/setting/get-or-create.js';
 import { successMessage, errorMessage } from '../../utils/messages.js';
 
-// ==================== OBTENER AJUSTES ====================
 export async function getSettings(req, res) {
     try {
         const settings = await getOrCreateSettings(req.user.id);
@@ -13,7 +12,6 @@ export async function getSettings(req, res) {
     }
 }
 
-// ==================== ACTUALIZAR AJUSTES ====================
 export async function updateSettings(req, res) {
     try {
         const settings = await getOrCreateSettings(req.user.id);
@@ -23,7 +21,6 @@ export async function updateSettings(req, res) {
             'plan_enabled', 'plan_window_start', 'plan_window_end',
             'plan_interval_minutes', 'plan_interval_loaded_minutes',
             'close_enabled', 'close_window_start', 'close_window_end', 'close_interval_minutes',
-            // legacy (aceptados por compatibilidad)
             'interval_minutes', 'window_start', 'window_end',
         ];
         const updates = {};

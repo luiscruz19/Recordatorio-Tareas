@@ -1,8 +1,7 @@
 import Device from '../../models/Device.js';
 import { successMessage, errorMessage } from '../../utils/messages.js';
 
-// ==================== REGISTRAR / ACTUALIZAR DISPOSITIVO ====================
-// Multi-dispositivo: upsert por device_uuid. Reasigna el dispositivo al usuario actual.
+// Un device_uuid ya registrado pasa al usuario que lo vincula ahora.
 export async function registerDevice(req, res) {
     try {
         const { device_uuid, platform, model, push_token } = req.body;
@@ -39,7 +38,6 @@ export async function registerDevice(req, res) {
     }
 }
 
-// ==================== ACTUALIZAR PUSH TOKEN ====================
 export async function updatePushToken(req, res) {
     try {
         const { device_uuid, push_token } = req.body;

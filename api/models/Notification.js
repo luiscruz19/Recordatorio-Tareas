@@ -2,10 +2,7 @@ import { DataTypes } from 'sequelize';
 import messages from '../config/messages.js';
 import sequelize from '../db/sequelize.js';
 
-/**
- * Recordatorio enviado al usuario (push del servidor). Guarda el envío para tener
- * historial e idempotencia (el cron no repite el aviso dentro del intervalo del usuario).
- */
+// El cron la consulta para no repetir un aviso dentro del intervalo del usuario.
 const Notification = sequelize.define('notifications', {
     id: {
         type: DataTypes.INTEGER,

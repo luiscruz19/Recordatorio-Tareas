@@ -1,7 +1,6 @@
 import Notification from '../../models/Notification.js';
 import { successMessage, errorMessage } from '../../utils/messages.js';
 
-// ==================== MIS NOTIFICACIONES ====================
 export async function listMyNotifications(req, res) {
     try {
         const notifications = await Notification.findAll({
@@ -17,7 +16,6 @@ export async function listMyNotifications(req, res) {
     }
 }
 
-// ==================== MARCAR COMO LEÍDA ====================
 export async function markRead(req, res) {
     try {
         const notification = await Notification.findOne({

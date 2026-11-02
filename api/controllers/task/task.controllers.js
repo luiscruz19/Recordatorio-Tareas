@@ -3,7 +3,6 @@ import Task from '../../models/Task.js';
 import { successMessage, errorMessage } from '../../utils/messages.js';
 import { localDateStr, addDaysStr } from '../../utils/helpers.js';
 
-// ==================== HOY (pendientes + hechas del día) ====================
 export async function listToday(req, res) {
     try {
         const today = localDateStr();
@@ -31,7 +30,6 @@ export async function listToday(req, res) {
     }
 }
 
-// ==================== CARRY-OVER (pendientes de días anteriores) ====================
 export async function listCarryover(req, res) {
     try {
         const today = localDateStr();
@@ -47,7 +45,6 @@ export async function listCarryover(req, res) {
     }
 }
 
-// ==================== CREAR ====================
 export async function createTask(req, res) {
     try {
         const text = String(req.body.text || '').trim();
@@ -63,7 +60,6 @@ export async function createTask(req, res) {
     }
 }
 
-// ==================== ACTUALIZAR (toggle done / editar texto / mover de día) ====================
 export async function updateTask(req, res) {
     try {
         const task = await Task.findOne({ where: { id: req.params.id, user_id: req.user.id } });
@@ -86,7 +82,6 @@ export async function updateTask(req, res) {
     }
 }
 
-// ==================== POSPONER (al día siguiente) ====================
 export async function snoozeTask(req, res) {
     try {
         const task = await Task.findOne({ where: { id: req.params.id, user_id: req.user.id } });
@@ -103,7 +98,6 @@ export async function snoozeTask(req, res) {
     }
 }
 
-// ==================== ELIMINAR (soft-delete) ====================
 export async function deleteTask(req, res) {
     try {
         const task = await Task.findOne({ where: { id: req.params.id, user_id: req.user.id } });
@@ -117,7 +111,6 @@ export async function deleteTask(req, res) {
     }
 }
 
-// ==================== PASAR TODAS A HOY (revisión de inicio del día) ====================
 export async function allCarryoverToday(req, res) {
     try {
         const today = localDateStr();

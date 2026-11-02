@@ -8,7 +8,6 @@ import { validate } from '../../utils/helpers.js';
 
 const task = Router();
 
-// Todas las rutas operan sobre las tareas del usuario autenticado (identidad = JWT de fichada).
 task.use(validateToken);
 
 task.get('/today', listToday);

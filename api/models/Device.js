@@ -2,10 +2,7 @@ import { DataTypes } from 'sequelize';
 import messages from '../config/messages.js';
 import sequelize from '../db/sequelize.js';
 
-/**
- * Dispositivo del usuario con su Expo push token (para los recordatorios del servidor).
- * Multi-dispositivo: un usuario puede tener varios; se notifica a todos los activos.
- */
+// Un usuario puede tener varios dispositivos; el recordatorio va a todos los activos.
 const Device = sequelize.define('devices', {
     id: {
         type: DataTypes.INTEGER,

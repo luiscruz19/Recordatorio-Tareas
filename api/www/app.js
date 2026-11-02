@@ -13,12 +13,10 @@ app.use(cors());
 
 app.use('/', routes);
 
-// Health check
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', service: 'recordatorios-api' });
 });
 
-// 404 — último middleware
 app.use(notFound);
 
 export default app;

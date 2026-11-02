@@ -2,12 +2,9 @@ import CONFIG from '../../config/config.js';
 import { successMessage, errorMessage } from '../../utils/messages.js';
 import getOrCreateSettings from '../../services/setting/get-or-create.js';
 
-// El login depende PURA Y EXCLUSIVAMENTE de fichada: recordatorios reenvía todos los endpoints
-// de credenciales a fichada_api (login + PIN sobre el Employee). NO hay usuarios locales:
-// la identidad es el user_id del JWT de fichada, y todo el dominio se indexa por ese id.
+// No hay usuarios locales: las credenciales las valida fichada_api y la identidad es el user_id de su JWT.
 const { FICHADA_API_URL } = CONFIG;
 
-// Reenvía una request a fichada_api/auth/* y devuelve { status, json }.
 async function forward(path, { method = 'GET', body = null, token = null } = {}) {
     const headers = {};
     if (body) headers['Content-Type'] = 'application/json';
@@ -27,7 +24,6 @@ function tokenFromReq(req) {
     return h || (typeof auth === 'string' && auth.startsWith('Bearer ') ? auth.slice(7).trim() : null);
 }
 
-// POST /auth/login — primer ingreso (email + contraseña), delegado a fichada.
 export async function login(req, res) {
     try {
         const { status, json } = await forward('/auth/login', { method: 'POST', body: req.body || {} });
@@ -37,18 +33,17 @@ export async function login(req, res) {
     }
 }
 
-// GET /auth/has-pin?email= — ¿ese usuario ya tiene PIN EN FICHADA?
 export async function hasPin(req, res) {
     try {
         const email = encodeURIComponent(String(req.query?.email || ''));
         const { status, json } = await forward(`/auth/has-pin?email=${email}`);
         return res.status(status).json(json ?? successMessage({ extra: { has_pin: false } }));
     } catch {
+        // Sin respuesta de fichada se asume que no hay PIN: la app pide la contraseña.
         return res.status(200).json(successMessage({ extra: { has_pin: false } }));
     }
 }
 
-// POST /auth/login-pin {email, pin} — login con el MISMO PIN de fichada.
 export async function loginPin(req, res) {
     try {
         const { status, json } = await forward('/auth/login-pin', { method: 'POST', body: req.body || {} });
@@ -58,7 +53,6 @@ export async function loginPin(req, res) {
     }
 }
 
-// POST /auth/set-pin (con JWT) — crea/cambia el PIN EN FICHADA (queda compartido).
 export async function setPin(req, res) {
     try {
         const { status, json } = await forward('/auth/set-pin', { method: 'POST', body: req.body || {}, token: tokenFromReq(req) });
@@ -68,7 +62,6 @@ export async function setPin(req, res) {
     }
 }
 
-// GET /auth/me — usuario (del JWT de fichada) + ajustes locales de recordatorios.
 export async function me(req, res) {
     try {
         const settings = await getOrCreateSettings(req.user.id);

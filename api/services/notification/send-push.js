@@ -2,10 +2,7 @@ import Device from '../../models/Device.js';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
-/**
- * Envía una notificación push a un Expo push token. `categoryId` habilita las acciones
- * interactivas (marcar hecha / posponer) declaradas en la app.
- */
+// categoryId habilita las acciones de la notificación (marcar hecha, posponer) declaradas en la app.
 export async function sendExpoPush(token, { title, body, data = {}, categoryId = null }) {
     if (!token) return { sent: false, reason: 'sin push token' };
     try {
@@ -24,9 +21,6 @@ export async function sendExpoPush(token, { title, body, data = {}, categoryId =
     }
 }
 
-/**
- * Manda la push a todos los dispositivos activos del usuario (multi-dispositivo).
- */
 export async function sendPushToUser(userId, payload) {
     const devices = await Device.findAll({ where: { user_id: userId, status: 'active' } });
     const tokens = devices.map(d => d.push_token).filter(Boolean);

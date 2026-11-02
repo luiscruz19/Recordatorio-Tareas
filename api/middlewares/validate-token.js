@@ -6,11 +6,7 @@ import { errorMessage } from '../utils/messages.js';
 const { SECRET_KEY } = CONFIG;
 const { generic } = messages;
 
-/**
- * Valida el JWT localmente con la SECRET_KEY compartida con el auth de fichada (HS256).
- * No hace request al auth en cada llamada: alcanza con verificar la firma.
- * Deja en req.user el payload emitido por auth (incluye id = user_id).
- */
+// Alcanza con verificar la firma: no se consulta a fichada en cada pedido.
 export default (req, res, next) => {
     const headerToken = req.headers.token;
     const authHeader = req.headers.authorization;
