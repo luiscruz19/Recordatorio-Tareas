@@ -1,43 +1,47 @@
 # Recordatorio Tareas
 
-App de **recordatorios de tareas del día**: anotás cosas para hacer hoy (sin hora) y te
-llegan recordatorios cada cierto tiempo, dentro de una franja horaria, hasta que las marcás
-como hechas. Al iniciar el día, una **revisión obligatoria** te hace decidir qué hacer con lo
-que quedó pendiente. Incluye **widget** de pantalla de inicio (Android).
+App móvil para anotar las tareas de hoy, sin hora, y recibir avisos hasta marcarlas como hechas.
 
-Diseño en Claude Design (proyecto *"Recordatorio tareas"*). Doc funcional y de diseño en [`docs/`](docs).
+**Estado:** no está en tiendas. Se compila con EAS y se instala como APK en Android.
 
-## Arquitectura
+## Qué hace
 
-Calca el stack de **fichada** (`/opt/repository/fichada`) y **reusa sus servicios core**:
+- **Hoy:** tareas pendientes y hechas del día, con opción de posponer al día siguiente o anotar para otro día.
+- **Revisión de inicio del día:** las pendientes de días anteriores hay que pasarlas a hoy, marcarlas o borrarlas antes de seguir.
+- **Dos recordatorios por usuario**, cada uno con su franja e intervalo. Valores por defecto:
+  - planificación: de 09:00 a 12:00, cada 30 min sin tareas cargadas para hoy y cada 90 min con tareas;
+  - cierre: de 18:00 a 20:00, cada 60 min mientras queden pendientes.
+- **Avisos** por push del servidor y por notificaciones locales de la app.
+- **Widget de Android** con las pendientes de hoy y un botón para agregar.
+- **Ingreso** con email y contraseña la primera vez; después, con PIN de 4 dígitos o biometría.
 
-- **`api/`** — monolito de dominio (Node/Express ESM + Sequelize). Tareas, ajustes de
-  recordatorio, dispositivos y notificaciones. Valida el JWT localmente con la `SECRET_KEY`
-  **compartida con el auth de fichada** → *mismos usuarios que fichada*. Corre un cron
-  (`task-reminder`) que manda push de recordatorio dentro de la franja de cada usuario.
-- **`app/`** — Expo / React Native. Implementa el diseño (Hoy / Agregar / Ajustes / Revisión)
-  + notificaciones locales + widget Android.
-- **auth / mailer** — **no viven acá**: se reusan los de fichada (`fichada_auth` /
-  `fichada_mailer`) corriendo en la red compartida `net-shared`.
+## Estructura
 
-Infra compartida en `/opt/shared` (Traefik + `mysql_db` en `net-shared`). Base del proyecto:
-**`RECORDATORIOS`**.
+- `api/`: Node, Express 4, Sequelize 6 y MySQL. Rutas `/auth`, `/tasks`, `/settings`, `/devices`, `/notifications` y `/health`. Un cron cada 15 minutos (`TASK_REMINDER_CRON`) evalúa los recordatorios y envía los push con Expo.
+- `app/`: Expo SDK 54 y React Native 0.81.
 
-## Levantar local
+## Dependencia de Fichada
 
-Requiere `/opt/shared` y **fichada** levantados (sus servicios auth/mailer).
+La autenticación es la de Fichada, un proyecto aparte que no está en este repositorio: la API reenvía el login y el PIN a `fichada_api` (`FICHADA_API_URL`) y valida los JWT con la misma `SECRET_KEY`. No hay usuarios propios y sin Fichada no se puede iniciar sesión.
+
+## Levantar en local
+
+Requiere Docker y, en la red `net-shared`, Traefik, el contenedor `mysql_db` y `fichada_api`. El Makefile toma la contraseña de MySQL de `/opt/shared/.env`.
 
 ```bash
-make up      # crea api/.env, asegura la base RECORDATORIOS y levanta el api en net-shared
-make app     # arranca la app (Expo)
+make up           # crea api/.env y la base RECORDATORIOS, y levanta la API
+make app-install  # instala las dependencias de la app
+make app          # arranca Expo
 ```
 
-- API: `http://recordatorios-api.localhost`
-- Login: con un usuario de fichada (p.ej. `admin@fichada.com` / `CAMBIAR_ANTES_DE_USAR`).
+La `SECRET_KEY` de `api/.env` tiene que coincidir con la de Fichada. La API responde en `http://recordatorios-api.localhost` por Traefik y en `http://localhost:4010` sin Traefik; `GET /health` sirve para comprobarlo.
 
-> `SECRET_KEY` y `AUTH_BASIC_*` de `api/.env` deben coincidir con los de fichada.
+La app usa `EXPO_PUBLIC_API_URL`; sin esa variable apunta a Traefik desde el emulador de Android. El widget y los push no funcionan en Expo Go: hace falta un build de desarrollo.
 
-## Deploy
+```bash
+cd app && npx eas-cli build -p android --profile development
+```
 
-Ver [`DEPLOY.md`](DEPLOY.md). Resumen: `./deploy.sh test` (build+push GHCR → pull/up en el
-server) → `https://recordatorios.sda.ovh`. La app se compila con EAS.
+## Despliegue
+
+Ver [`DEPLOY.md`](DEPLOY.md).
