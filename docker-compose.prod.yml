@@ -1,12 +1,5 @@
-# ════════════════════════════════════════════════════════════════════════════
-#  RECORDATORIO TAREAS · PROD (test server) — api de dominio. Build+push + runtime.
-#  - `deploy.sh test` lo usa para BUILD + PUSH de la imagen a GHCR.
-#  - En el server el mismo archivo sirve para PULL + UP (build: es inerte al hacer pull).
-#  Reusa los servicios auth/mailer de FICHADA (desplegados en /opt/test/fichada, misma
-#  red externa net-shared). NO se despliegan auth/mailer acá.
-#  Ruteo: api → https://recordatorios.sda.ovh (raíz; sin backoffice).
-#  La SECRET_KEY y el Basic del .env DEBEN coincidir con los de fichada (mismos usuarios).
-# ════════════════════════════════════════════════════════════════════════════
+# deploy.sh lo usa para construir y publicar la imagen; en el servidor, para pull y up.
+# La SECRET_KEY del .env tiene que coincidir con la de fichada, que corre en la misma red.
 services:
   recordatorios_api:
     build:

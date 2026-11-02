@@ -1,9 +1,4 @@
-# Recordatorio Tareas — usa la infra compartida de /opt/shared (Traefik + mysql_db + net-shared).
-# Reusa los servicios core de fichada (fichada_auth / fichada_mailer) en la misma red.
-# Requisitos: /opt/shared levantado Y fichada levantado.
-#   make up   (crea .env, asegura la base y levanta el api en net-shared)
-# Acceso (vía Traefik):
-#   - API: http://recordatorios-api.localhost   (login del cliente: POST /auth/login)
+# Requiere la red net-shared con Traefik y MySQL, y fichada_api levantado para el login.
 name: recordatorios
 
 services:
@@ -18,7 +13,7 @@ services:
       - NODE_ENV=development
       - TZ=America/Argentina/Buenos_Aires
     ports:
-      # Acceso directo (sin Traefik) para builds preview-local / LAN de la app.
+      # Acceso sin Traefik para los builds de la app contra la red local.
       - "4010:80"
     labels:
       - "traefik.enable=true"

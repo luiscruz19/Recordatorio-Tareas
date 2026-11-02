@@ -1,18 +1,9 @@
 #!/bin/bash
 set -euo pipefail
-# ════════════════════════════════════════════════════════════════════════════
-#  RECORDATORIO TAREAS · deploy.sh — build + push (GHCR) + pull/up en el server.
-#  Una sola imagen (api). Reusa los servicios auth/mailer de fichada ya desplegados
-#  en el server (misma red net-shared).
-#
-#  Uso:  ./deploy.sh [test]
-#
-#  Variables (en .env.deploy.<env>):
-#    DEPLOY_USER, DEPLOY_SERVER, DEPLOY_PORT, DEPLOY_PATH, DEPLOY_TAG
-#    DEPLOY_SSH_KEY            — clave privada para SSH (default ~/.ssh/id_ed25519)
-#    GITHUB_REGISTRY_USER      — usuario de GHCR (default luiscruz19)
-#    GITHUB_REGISTRY_TOKEN     — PAT con write:packages (suele venir del entorno/~/.bashrc)
-# ════════════════════════════════════════════════════════════════════════════
+# Uso: ./deploy.sh [test]
+# Variables en .env.deploy.<entorno>: DEPLOY_USER, DEPLOY_SERVER, DEPLOY_PORT, DEPLOY_PATH, DEPLOY_TAG,
+# DEPLOY_SSH_KEY (por defecto ~/.ssh/id_ed25519), GITHUB_REGISTRY_USER y GITHUB_REGISTRY_TOKEN
+# (PAT con write:packages).
 
 ENVIRONMENT="${1:-test}"
 ENV_FILE=".env.deploy.${ENVIRONMENT}"
@@ -30,13 +21,13 @@ TAG="${DEPLOY_TAG:-TEST}"; export TAG
 REG_USER="${GITHUB_REGISTRY_USER:-luiscruz19}"
 REG_TOKEN="${GITHUB_REGISTRY_TOKEN:?falta GITHUB_REGISTRY_TOKEN (PAT con write:packages)}"
 SSH_KEY="${DEPLOY_SSH_KEY:-$HOME/.ssh/id_ed25519}"
-SSH_KEY="${SSH_KEY/#\~/$HOME}"   # expandir ~ (no se expande dentro de variables)
+# ~ no se expande dentro de variables.
+SSH_KEY="${SSH_KEY/#\~/$HOME}"
 SSH="ssh -i $SSH_KEY -p $DEPLOY_PORT -o StrictHostKeyChecking=accept-new"
 SCP="scp -i $SSH_KEY -P $DEPLOY_PORT -o StrictHostKeyChecking=accept-new"
 
 echo "── RECORDATORIOS deploy ($ENVIRONMENT) · TAG=$TAG → $DEPLOY_USER@$DEPLOY_SERVER:$DEPLOY_PATH ──"
 
-# 1) Build + push de la imagen a GHCR (nada se compila en el server).
 echo "→ login GHCR (local)"
 echo "$REG_TOKEN" | docker login ghcr.io -u "$REG_USER" --password-stdin
 echo "→ build"
@@ -44,12 +35,12 @@ docker compose -f docker-compose.prod.yml build
 echo "→ push"
 docker compose -f docker-compose.prod.yml push
 
-# 2) Sincronizar el compose de runtime al server (el bloque build: es inerte en pull/up).
+# El bloque build: del compose no tiene efecto en pull/up.
 echo "→ copiar docker-compose.prod.yml → $DEPLOY_PATH/docker-compose.yml"
 $SSH "$DEPLOY_USER@$DEPLOY_SERVER" "mkdir -p '$DEPLOY_PATH'"
 $SCP docker-compose.prod.yml "$DEPLOY_USER@$DEPLOY_SERVER:$DEPLOY_PATH/docker-compose.yml"
 
-# 3) En el server: login, pull, up. (heredoc no entrecomillado: TAG/credenciales se expanden acá)
+# Heredoc sin comillas: TAG y las credenciales se expanden acá, no en el servidor.
 echo "→ pull + up en el server"
 $SSH "$DEPLOY_USER@$DEPLOY_SERVER" bash -s <<EOF
 set -e
