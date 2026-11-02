@@ -1,10 +1,11 @@
-import React from 'react';
 import { FlexWidget, TextWidget } from 'react-native-android-widget';
 
+const MAX_VISIBLE_TASKS = 4;
+
 export function TaskWidget({ data }) {
-    const pending = (data && data.pending) || [];
-    const done = (data && data.done) || 0;
-    const total = (data && data.total) || 0;
+    const pending = data?.pending || [];
+    const done = data?.done || 0;
+    const total = data?.total || 0;
 
     return (
         <FlexWidget
@@ -29,7 +30,7 @@ export function TaskWidget({ data }) {
             {pending.length === 0 ? (
                 <TextWidget text="¡Todo hecho por hoy!" style={{ fontSize: 13, color: '#AFC2E6', marginTop: 6 }} />
             ) : (
-                pending.slice(0, 4).map((t) => (
+                pending.slice(0, MAX_VISIBLE_TASKS).map((t) => (
                     <FlexWidget
                         key={String(t.id)}
                         clickAction="OPEN_URI"

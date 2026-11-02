@@ -2,15 +2,15 @@ import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
 // En web no hay SecureStore: se usa localStorage para poder probar.
-const isWeb = Platform.OS === 'web';
+export const IS_WEB = Platform.OS === 'web';
 
 export async function getItem(key) {
-    if (isWeb) return typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
+    if (IS_WEB) return typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
     return SecureStore.getItemAsync(key);
 }
 
 export async function setItem(key, value) {
-    if (isWeb) {
+    if (IS_WEB) {
         if (typeof localStorage !== 'undefined') localStorage.setItem(key, value);
         return;
     }
@@ -18,11 +18,9 @@ export async function setItem(key, value) {
 }
 
 export async function deleteItem(key) {
-    if (isWeb) {
+    if (IS_WEB) {
         if (typeof localStorage !== 'undefined') localStorage.removeItem(key);
         return;
     }
     return SecureStore.deleteItemAsync(key);
 }
-
-export const IS_WEB = isWeb;

@@ -1,7 +1,6 @@
-import React from 'react';
-import { View, Text } from 'react-native';
+import { View } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { C, F } from './theme';
+import { C } from './theme';
 
 export function Isotipo({ size = 40, color = C.accent, stroke = 9 }) {
     return (
@@ -12,34 +11,18 @@ export function Isotipo({ size = 40, color = C.accent, stroke = 9 }) {
     );
 }
 
-export function Logo({ size = 46, color = C.inkStrong, accent = C.accent }) {
-    return (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13 }}>
-            <Isotipo size={size} color={accent} />
-            <View>
-                <Text style={{ fontFamily: F.bold, fontSize: size * 0.42, color, letterSpacing: -0.5, lineHeight: size * 0.46 }}>
-                    Recordatorio
-                </Text>
-                <Text style={{ fontFamily: F.med, fontSize: size * 0.42, color: accent, letterSpacing: -0.3, lineHeight: size * 0.5 }}>
-                    Tareas
-                </Text>
-            </View>
-        </View>
-    );
-}
-
 export function Ring({ size = 78, stroke = 7, pct = 0, color = '#fff', track = 'rgba(255,255,255,0.20)', children }) {
-    const r = size / 2 - stroke;
-    const circ = 2 * Math.PI * r;
+    const radius = size / 2 - stroke;
+    const circumference = 2 * Math.PI * radius;
     const clamped = Math.max(0, Math.min(100, pct));
-    const offset = circ * (1 - clamped / 100);
+    const offset = circumference * (1 - clamped / 100);
     return (
         <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
             <Svg width={size} height={size} style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
-                <Circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={stroke} />
+                <Circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={track} strokeWidth={stroke} />
                 <Circle
-                    cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
-                    strokeLinecap="round" strokeDasharray={`${circ} ${circ}`} strokeDashoffset={offset}
+                    cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color} strokeWidth={stroke}
+                    strokeLinecap="round" strokeDasharray={`${circumference} ${circumference}`} strokeDashoffset={offset}
                 />
             </Svg>
             <View style={{ position: 'absolute', alignItems: 'center', justifyContent: 'center' }}>

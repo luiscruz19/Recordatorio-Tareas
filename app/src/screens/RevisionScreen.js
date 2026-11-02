@@ -1,4 +1,3 @@
-import React from 'react';
 import { View, Text, Pressable, ScrollView, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

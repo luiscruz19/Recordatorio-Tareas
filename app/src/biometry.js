@@ -14,14 +14,14 @@ export const clearLocalPin = () => deleteItem(PIN_KEY);
 
 export async function hwEnrolled() {
     if (IS_WEB) return false;
-    const hw = await LocalAuthentication.hasHardwareAsync().catch(() => false);
+    const hasHardware = await LocalAuthentication.hasHardwareAsync().catch(() => false);
     const enrolled = await LocalAuthentication.isEnrolledAsync().catch(() => false);
-    return !!(hw && enrolled);
+    return !!(hasHardware && enrolled);
 }
 
 export async function authenticate(promptMessage = 'Ingresar a Recordatorio Tareas') {
     if (IS_WEB) return false;
-    const r = await LocalAuthentication.authenticateAsync({ promptMessage })
+    const result = await LocalAuthentication.authenticateAsync({ promptMessage })
         .catch(() => ({ success: false }));
-    return !!r?.success;
+    return !!result?.success;
 }

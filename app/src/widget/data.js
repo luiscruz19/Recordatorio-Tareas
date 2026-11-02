@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const KEY = 'widget_today';
+const EMPTY_SNAPSHOT = { pending: [], done: 0, total: 0 };
 
 export async function saveWidgetData(data) {
     try { await AsyncStorage.setItem(KEY, JSON.stringify(data)); } catch {}
@@ -9,10 +10,10 @@ export async function saveWidgetData(data) {
 
 export async function loadWidgetData() {
     try {
-        const s = await AsyncStorage.getItem(KEY);
-        return s ? JSON.parse(s) : { pending: [], done: 0, total: 0 };
+        const stored = await AsyncStorage.getItem(KEY);
+        return stored ? JSON.parse(stored) : EMPTY_SNAPSHOT;
     } catch {
-        return { pending: [], done: 0, total: 0 };
+        return EMPTY_SNAPSHOT;
     }
 }
 

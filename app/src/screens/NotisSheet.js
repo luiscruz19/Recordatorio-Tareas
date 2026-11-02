@@ -1,8 +1,7 @@
-import React from 'react';
 import { View, Text, Pressable, Modal, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bell, Check } from 'lucide-react-native';
-import { C, F, R } from '../theme';
+import { Bell } from 'lucide-react-native';
+import { C, F } from '../theme';
 
 export function NotisSheet({ visible, onClose, items, onMarkAllRead }) {
     const insets = useSafeAreaInsets();

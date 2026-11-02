@@ -20,7 +20,7 @@ if (Platform.OS === 'android') {
                     props.renderWidget(element);
                     break;
                 case 'WIDGET_CLICK': {
-                    const uri = props.clickActionData && props.clickActionData.uri;
+                    const uri = props.clickActionData?.uri;
                     if (uri) { try { await Linking.openURL(uri); } catch {} }
                     props.renderWidget(element);
                     break;
