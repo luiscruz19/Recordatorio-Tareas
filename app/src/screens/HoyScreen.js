@@ -27,7 +27,6 @@ export function HoyScreen({ data, loading = false, onToggle, onSnooze, onDelete,
 
     return (
         <View style={{ flex: 1, backgroundColor: C.bg }}>
-            {/* HEADER */}
             <LinearGradient
                 colors={GRAD_HEADER} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                 style={{ paddingTop: insets.top + 14, paddingHorizontal: 22, paddingBottom: 30, borderBottomLeftRadius: 32, borderBottomRightRadius: 32, overflow: 'hidden', ...shadowHeader }}
@@ -63,7 +62,6 @@ export function HoyScreen({ data, loading = false, onToggle, onSnooze, onDelete,
                 </View>
             </LinearGradient>
 
-            {/* LISTA */}
             <ScrollView
                 style={{ flex: 1 }}
                 contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 22, paddingBottom: 130 + insets.bottom }}
@@ -108,7 +106,6 @@ export function HoyScreen({ data, loading = false, onToggle, onSnooze, onDelete,
                 )}
             </ScrollView>
 
-            {/* FAB */}
             <Pressable
                 onPress={onAdd}
                 style={({ pressed }) => ({ position: 'absolute', right: 20, bottom: 28 + insets.bottom, transform: [{ scale: pressed ? 0.95 : 1 }] })}

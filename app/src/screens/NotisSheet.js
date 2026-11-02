@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bell, Check } from 'lucide-react-native';
 import { C, F, R } from '../theme';
 
-// Panel de notificaciones (lista de recordatorios recibidos del servidor).
 export function NotisSheet({ visible, onClose, items, onMarkAllRead }) {
     const insets = useSafeAreaInsets();
     const list = items || [];

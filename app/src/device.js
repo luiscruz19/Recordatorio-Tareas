@@ -4,12 +4,11 @@ import Constants from 'expo-constants';
 import { getItem, setItem } from './storage';
 import { registerDevice } from './api';
 
-// En Expo Go (SDK 53+) las push de Android no están disponibles → no las pedimos.
+// En Expo Go (SDK 53+) las push de Android no están disponibles.
 const IS_EXPO_GO = Constants.executionEnvironment === 'storeClient';
 
 const UUID_KEY = 'recordatorios_device_uuid';
 
-// Identificador estable del dispositivo: se genera una vez y persiste.
 async function getDeviceUuid() {
     let id = await getItem(UUID_KEY);
     if (!id) {
@@ -19,7 +18,6 @@ async function getDeviceUuid() {
     return id;
 }
 
-// Push token de Expo (best-effort: requiere permisos y projectId/EAS; si falla, null).
 async function getPushToken() {
     if (IS_EXPO_GO) return null;
     const Notifications = require('expo-notifications');
@@ -34,10 +32,6 @@ async function getPushToken() {
     }
 }
 
-/**
- * Registra/actualiza este dispositivo en el backend (push token para el recordatorio del servidor).
- * No es crítico: si falla, la app sigue funcionando con las notificaciones locales.
- */
 export async function syncDevice() {
     try {
         const device_uuid = await getDeviceUuid();
@@ -49,6 +43,6 @@ export async function syncDevice() {
             push_token,
         });
     } catch (e) {
-        // offline o sin permiso: las notificaciones locales cubren el recordatorio.
+        // Sin conexión o sin permiso: las notificaciones locales cubren el recordatorio.
     }
 }

@@ -1,9 +1,6 @@
 import { getItem, setItem, deleteItem } from './storage';
 
-// La app habla SOLO con el api (auth queda interno; el login pega a POST /auth/login del api,
-// que proxea a fichada_auth → mismos usuarios que fichada). La base sale 100% de
-// EXPO_PUBLIC_API_URL: en builds/updates EAS se inyecta el dominio real (vía la env de EAS) y
-// GANA. Si no está (dev local con emulador) cae al gateway de Traefik con Host-routing.
+// Sin EXPO_PUBLIC_API_URL (emulador local) se usa el gateway de Traefik con ruteo por Host.
 const PUBLIC_API = process.env.EXPO_PUBLIC_API_URL;
 const LOCAL_GATEWAY = 'http://10.0.2.2';
 const LOCAL_API_HOST = 'recordatorios-api.localhost';
@@ -16,7 +13,6 @@ function baseHeaders(extra = {}) {
     return h;
 }
 
-// fetch con timeout: evita que una request quede colgada para siempre (sin red / URL mala).
 async function tfetch(url, opts = {}, ms = 15000) {
     const ctrl = new AbortController();
     const id = setTimeout(() => ctrl.abort(), ms);
@@ -61,7 +57,6 @@ async function req(path, opts = {}) {
     return json;
 }
 
-// ─── Auth (mismos usuarios que fichada) ──────────────────────────────────────
 export async function login(email, password) {
     const res = await tfetch(BASE + '/auth/login', {
         method: 'POST',
@@ -75,10 +70,8 @@ export async function login(email, password) {
 }
 export const getMe = () => req('/auth/me');
 
-// ¿Ese email ya tiene PIN? (la app decide pedir PIN o contraseña).
 export const hasPin = (email) => req(`/auth/has-pin?email=${encodeURIComponent(email)}`);
 
-// Login por PIN (ingresos siguientes al primero).
 export async function loginPin(email, pin) {
     const res = await tfetch(BASE + '/auth/login-pin', {
         method: 'POST',
@@ -91,10 +84,8 @@ export async function loginPin(email, pin) {
     return json.user;
 }
 
-// Setear el PIN tras el primer ingreso (requiere sesión).
 export const setPinRemote = (pin) => req('/auth/set-pin', { method: 'POST', body: JSON.stringify({ pin }) });
 
-// ─── Tareas ──────────────────────────────────────────────────────────────────
 export const getToday = () => req('/tasks/today');
 export const getCarryover = () => req('/tasks/carryover');
 export const createTask = (text, task_date) =>
@@ -106,15 +97,12 @@ export const snoozeTask = (id) => req(`/tasks/${id}/snooze`, { method: 'POST', b
 export const deleteTask = (id) => req(`/tasks/${id}`, { method: 'DELETE' });
 export const allCarryoverToday = () => req('/tasks/carryover/all-today', { method: 'POST', body: '{}' });
 
-// ─── Ajustes ─────────────────────────────────────────────────────────────────
 export const getSettings = () => req('/settings');
 export const updateSettings = (patch) => req('/settings', { method: 'PUT', body: JSON.stringify(patch) });
 
-// ─── Dispositivo + push ──────────────────────────────────────────────────────
 export const registerDevice = (payload) => req('/devices/register', { method: 'POST', body: JSON.stringify(payload) });
 export const updatePushToken = (device_uuid, push_token) =>
     req('/devices/push-token', { method: 'PATCH', body: JSON.stringify({ device_uuid, push_token }) });
 
-// ─── Notificaciones ──────────────────────────────────────────────────────────
 export const listNotifications = () => req('/notifications');
 export const markNotificationRead = (id) => req(`/notifications/${id}/read`, { method: 'PATCH', body: '{}' });

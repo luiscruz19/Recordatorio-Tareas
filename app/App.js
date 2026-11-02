@@ -28,7 +28,6 @@ import { AgregarSheet } from './src/screens/AgregarSheet';
 import { RevisionScreen } from './src/screens/RevisionScreen';
 import { NotisSheet } from './src/screens/NotisSheet';
 
-// Animaciones de layout (entrar/salir/reordenar) suaves en toda la app.
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
@@ -37,10 +36,9 @@ function animate() {
         LayoutAnimation.configureNext(
             LayoutAnimation.create(240, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity)
         );
-    } catch { /* no-op */ }
+    } catch {}
 }
 
-// Recalcula pendientes/hechas/contadores desde una lista plana.
 function splitToday(prev, all) {
     const pending = all.filter((t) => t.status === 'pending');
     const done = all.filter((t) => t.status === 'done');
@@ -56,7 +54,7 @@ if (!IS_EXPO_GO) {
                 shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false,
             }),
         });
-    } catch { /* no-op */ }
+    } catch {}
 }
 
 const EMAIL_KEY = 'recordatorios_email';
@@ -77,7 +75,7 @@ export default function App() {
     const bioTried = useRef(false);
 
     const [today, setToday] = useState(EMPTY_TODAY);
-    const [loaded, setLoaded] = useState(false);     // primer load de Hoy completado
+    const [loaded, setLoaded] = useState(false);
     const [carryover, setCarryover] = useState([]);
     const [settings, setSettings] = useState(null);
     const [notis, setNotis] = useState([]);
@@ -110,8 +108,7 @@ export default function App() {
         if (set) localNotifs.reschedule(set, pending.length, pending.length + done.length);
     }, []);
 
-    // Reconciliación silenciosa con el servidor (sin spinner ni animación): trae la verdad
-    // luego de una acción optimista (ids reales, orden, etc.).
+    // Tras una acción optimista trae del servidor los ids reales y el orden.
     const reconcileToday = useCallback(async () => {
         const r = await guard(() => api.getToday());
         if (r?.data) { setToday(r.data); syncSideEffects(r.data, settings); }
@@ -121,12 +118,10 @@ export default function App() {
         const last = await getItem(EMAIL_KEY);
         if (!last) { setSession('emailEntry'); return; }
         setEmail(last);
-        // ¿Biometría disponible? PIN local + hardware enrolado (igual que fichada).
         const localPin = await biometry.getLocalPin();
         setCanBio(!!localPin && await biometry.hwEnrolled());
-        // PIN ya configurado en este teléfono → directo al PIN (offline-friendly).
+        // Con PIN local no hace falta consultar al servidor: funciona sin conexión.
         if (localPin) { setSession('loginPin'); return; }
-        // Sin PIN local: le preguntamos al servidor si la cuenta ya tiene PIN.
         try {
             const res = await api.hasPin(last);
             setSession(res?.has_pin ? 'loginPin' : 'loginPassword');
@@ -154,7 +149,6 @@ export default function App() {
         localNotifs.getPermissionStatus().then(setNotifStatus);
     }, [guard, syncSideEffects]);
 
-    // Boot
     useEffect(() => {
         (async () => {
             await localNotifs.setupCategory();
@@ -172,7 +166,7 @@ export default function App() {
         if (session === 'active') { setLoaded(false); loadAll(); syncDevice(); }
     }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Acciones desde la push (Marcar hecha / Posponer).
+    // La push no identifica una tarea: la acción se aplica a la primera pendiente.
     useEffect(() => {
         if (IS_EXPO_GO || session !== 'active') return;
         let sub;
@@ -185,8 +179,8 @@ export default function App() {
                 else if (action === 'SNOOZE' && first) { await guard(() => api.snoozeTask(first.id)); }
                 await reconcileToday();
             });
-        } catch { /* no-op */ }
-        return () => { try { sub && sub.remove(); } catch { /* no-op */ } };
+        } catch {}
+        return () => { try { sub && sub.remove(); } catch {} };
     }, [session, today.pending, guard, reconcileToday]);
 
     // Deep links del widget: recordatorios://add abre el formulario.
@@ -198,13 +192,12 @@ export default function App() {
         };
         Linking.getInitialURL().then(handle).catch(() => {});
         const sub = Linking.addEventListener('url', (e) => handle(e?.url));
-        return () => { try { sub && sub.remove(); } catch { /* no-op */ } };
+        return () => { try { sub && sub.remove(); } catch {} };
     }, []);
     useEffect(() => {
         if (session === 'active' && pendingAdd) { setAddOpen(true); setPendingAdd(false); }
     }, [session, pendingAdd]);
 
-    // ─── Auth (email → PIN, delegado a fichada) ───────────────────────────────
     const onContinueEmail = async (em) => {
         const e = String(em || '').trim().toLowerCase();
         if (!e) { setAuthError('Ingresá tu email'); return; }
@@ -241,7 +234,7 @@ export default function App() {
             setBusy(true);
             try {
                 await api.setPinRemote(value);
-                await biometry.saveLocalPin(value); // habilita huella/FaceID en este teléfono
+                await biometry.saveLocalPin(value);
                 setAuthError(null); setSession('active');
             }
             catch { setAuthError('No se pudo guardar el PIN'); setSession('createPin'); }
@@ -250,7 +243,7 @@ export default function App() {
             setBusy(true);
             try {
                 await api.loginPin(email, value);
-                await biometry.saveLocalPin(value); // recuerda el PIN para la biometría
+                await biometry.saveLocalPin(value);
                 setAuthError(null); setSession('active');
             }
             catch (e) { setAuthError(e?.message || 'PIN incorrecto'); }
@@ -258,7 +251,6 @@ export default function App() {
         }
     };
 
-    // Login con biometría: valida huella/FaceID → recupera el PIN local → login-pin normal.
     const onBio = async () => {
         try {
             const ok = await biometry.authenticate();
@@ -275,8 +267,7 @@ export default function App() {
         }
     };
 
-    // Al llegar a la pantalla de PIN con biometría disponible, se dispara sola (una vez),
-    // como las apps de banco; si la cancelás, queda el teclado de PIN (igual que fichada).
+    // La biometría se dispara una sola vez al llegar al PIN; si se cancela, queda el teclado.
     useEffect(() => {
         if (session === 'loginPin' && canBio && !bioTried.current) {
             bioTried.current = true;
@@ -287,8 +278,6 @@ export default function App() {
 
     const onBackEmail = () => { setAuthError(null); setSession('emailEntry'); };
 
-    // Bloquear app: vuelve a la pantalla de PIN (conserva token y PIN local). Si hay biometría,
-    // se dispara sola al entrar. Es el camino para reingresar con huella sin cerrar la sesión.
     const onLock = async () => {
         setScreen('hoy'); setAuthError(null);
         const localPin = await biometry.getLocalPin();
@@ -296,7 +285,6 @@ export default function App() {
         setSession('loginPin');
     };
 
-    // Cerrar sesión: borra token y PIN local; vuelve al ingreso recordando el email.
     const onLogout = async () => {
         setScreen('hoy'); setAuthError(null);
         await api.clearToken();
@@ -304,7 +292,6 @@ export default function App() {
         await goToLogin();
     };
 
-    // ─── Acciones de tareas (UI OPTIMISTA: feedback inmediato + animación) ─────
     const onToggle = (task) => {
         const done = task.status !== 'done';
         (done ? haptics.success : haptics.tap)();
@@ -369,7 +356,6 @@ export default function App() {
         syncSideEffects(today, eff);
     };
 
-    // ─── Revisión de inicio del día (optimista) ────────────────────────────────
     const stepCarryover = (id, apiCall) => {
         haptics.tap();
         animate();
@@ -417,7 +403,6 @@ export default function App() {
         setNotis(nt?.data || []);
     };
 
-    // ─── Render ──────────────────────────────────────────────────────────────
     if (!fontsLoaded || session === 'boot') {
         return (
             <View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' }}>

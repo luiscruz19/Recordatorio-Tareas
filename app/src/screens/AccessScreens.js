@@ -18,7 +18,6 @@ function Brand({ subtitle }) {
     );
 }
 
-// ---- Paso 1: email ----
 export function EmailScreen({ onContinue, busy, error, initialEmail }) {
     const [email, setEmail] = useState(initialEmail || '');
     return (
@@ -35,7 +34,6 @@ export function EmailScreen({ onContinue, busy, error, initialEmail }) {
     );
 }
 
-// ---- Paso 2a (primer ingreso): contraseña ----
 export function PasswordScreen({ email, onLogin, onBack, error, busy }) {
     const [password, setPassword] = useState('');
     return (
@@ -55,7 +53,6 @@ export function PasswordScreen({ email, onLogin, onBack, error, busy }) {
     );
 }
 
-// ---- Teclado numérico ----
 function PinPad({ onDigit, onDelete }) {
     const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'];
     return (
@@ -76,7 +73,6 @@ function PinPad({ onDigit, onDelete }) {
     );
 }
 
-// ---- PIN: create | confirm | login (email + PIN) ----
 export function PinScreen({ mode, email, error, onComplete, onBio, onBack }) {
     const [pin, setPin] = useState('');
     const titles = { create: 'Creá tu PIN', confirm: 'Repetí el PIN', login: 'Ingresá tu PIN' };

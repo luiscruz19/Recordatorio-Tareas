@@ -3,7 +3,6 @@ import { View, Text } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { C, F } from './theme';
 
-// Isotipo de marca: anillo abierto + check (del sistema de marca de Claude Design).
 export function Isotipo({ size = 40, color = C.accent, stroke = 9 }) {
     return (
         <Svg width={size} height={size} viewBox="0 0 100 100" fill="none">
@@ -13,7 +12,6 @@ export function Isotipo({ size = 40, color = C.accent, stroke = 9 }) {
     );
 }
 
-// Logo horizontal: isotipo + "Recordatorio Tareas".
 export function Logo({ size = 46, color = C.inkStrong, accent = C.accent }) {
     return (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13 }}>
@@ -30,7 +28,6 @@ export function Logo({ size = 46, color = C.inkStrong, accent = C.accent }) {
     );
 }
 
-// Anillo de progreso (porcentaje completado). El contenido va centrado encima.
 export function Ring({ size = 78, stroke = 7, pct = 0, color = '#fff', track = 'rgba(255,255,255,0.20)', children }) {
     const r = size / 2 - stroke;
     const circ = 2 * Math.PI * r;

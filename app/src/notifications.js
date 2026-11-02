@@ -1,8 +1,6 @@
 import Constants from 'expo-constants';
 
-// Notificaciones LOCALES (lado app del esquema híbrido): agendan recordatorios dentro de la
-// franja horaria según el intervalo, mientras haya pendientes. El push del servidor cubre el
-// caso de app cerrada / otro dispositivo.
+// Avisos locales; el push del servidor cubre la app cerrada y otros dispositivos.
 const IS_EXPO_GO = Constants.executionEnvironment === 'storeClient';
 const CATEGORY = 'TASK_REMINDER';
 
@@ -24,7 +22,7 @@ export async function getPermissionStatus() {
     if (!n) return 'unsupported';
     try {
         const { status } = await n.getPermissionsAsync();
-        return status; // granted | denied | undetermined
+        return status;
     } catch {
         return 'unsupported';
     }
@@ -50,11 +48,10 @@ export async function setupCategory() {
             { identifier: 'DONE', buttonTitle: 'Marcar hecha', options: { opensAppToForeground: true } },
             { identifier: 'SNOOZE', buttonTitle: 'Posponer', options: { opensAppToForeground: false } },
         ]);
-    } catch { /* no-op */ }
+    } catch {}
 }
 
-// Agenda los disparos de HOY que aún faltan dentro de [startMin, endMin] cada `interval`.
-// Devuelve cuántos programó (tope global para no saturar la cola del SO).
+// budget limita los avisos agendados para no saturar la cola del sistema operativo.
 async function scheduleWindow(n, { startMin, endMin, interval, title, body, data, nowMin, now, budget }) {
     let scheduled = 0;
     for (let m = startMin; m <= endMin && scheduled < budget; m += interval) {
@@ -70,12 +67,6 @@ async function scheduleWindow(n, { startMin, endMin, interval, title, body, data
     return scheduled;
 }
 
-/**
- * Reprograma las notificaciones locales (lado app del esquema híbrido). Cancela todo y agenda
- * los disparos de HOY que aún faltan para dos recordatorios independientes:
- *  - PLANIFICACIÓN: en la franja de la mañana, si aún NO cargaste tareas para hoy.
- *  - CIERRE: en la franja de la tarde, si quedan tareas pendientes para hoy.
- */
 export async function reschedule(settings, pendingCount, loadedCount = 0) {
     const n = load();
     if (!n) return;
@@ -88,7 +79,7 @@ export async function reschedule(settings, pendingCount, loadedCount = 0) {
         const now = new Date();
         const nowMin = now.getHours() * 60 + now.getMinutes();
 
-        // PLANIFICACIÓN (mañana): solo si no cargaste ninguna tarea para hoy.
+        // A diferencia del push del servidor, este aviso no insiste si ya hay tareas cargadas.
         if (settings.plan_enabled !== false && !loadedCount) {
             await scheduleWindow(n, {
                 startMin: toMin(settings.plan_window_start), endMin: toMin(settings.plan_window_end),
@@ -99,7 +90,6 @@ export async function reschedule(settings, pendingCount, loadedCount = 0) {
             });
         }
 
-        // CIERRE (tarde): solo si quedan pendientes para hoy.
         if (settings.close_enabled !== false && pendingCount) {
             await scheduleWindow(n, {
                 startMin: toMin(settings.close_window_start), endMin: toMin(settings.close_window_end),
@@ -109,11 +99,11 @@ export async function reschedule(settings, pendingCount, loadedCount = 0) {
                 data: { type: 'task_reminder' }, nowMin, now, budget: 16,
             });
         }
-    } catch { /* best-effort */ }
+    } catch { /* sin avisos locales queda el push del servidor */ }
 }
 
 export async function cancelAll() {
     const n = load();
     if (!n) return;
-    try { await n.cancelAllScheduledNotificationsAsync(); } catch { /* no-op */ }
+    try { await n.cancelAllScheduledNotificationsAsync(); } catch {}
 }

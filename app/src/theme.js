@@ -1,4 +1,3 @@
-// Sistema de marca de "Recordatorio Tareas" (Claude Design): Space Grotesk + azul #1F4894.
 export const C = {
     bg: '#F4F6FA',
     bgTint: '#EEF1F8',
@@ -29,14 +28,13 @@ export const C = {
     overlay: 'rgba(18,26,46,0.40)',
 };
 
-// Degradados del diseño (expo-linear-gradient usa arrays de color).
 export const GRAD_HEADER = ['#21498F', '#3160B8'];
 export const GRAD_FAB = ['#2456A8', '#1F4894'];
 export const GRAD_BRAND = ['#2A5BB0', '#1C3F82'];
 
 export const R = { sm: 11, md: 14, lg: 18, xl: 24, pill: 999 };
 
-// Familias de Space Grotesk (coinciden con los exports de @expo-google-fonts/space-grotesk).
+// Deben coincidir con las fuentes cargadas por useFonts en App.js.
 export const F = {
     reg: 'SpaceGrotesk_400Regular',
     med: 'SpaceGrotesk_500Medium',

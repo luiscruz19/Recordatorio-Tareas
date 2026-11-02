@@ -1,7 +1,6 @@
 import Constants from 'expo-constants';
 
-// Feedback háptico suave para las acciones. Lazy + best-effort: no rompe en Expo Go ni en
-// bundles servidos por OTA a builds sin el módulo nativo.
+// Carga perezosa: no rompe en Expo Go ni en bundles OTA sobre builds sin el módulo nativo.
 const IS_EXPO_GO = Constants.executionEnvironment === 'storeClient';
 let H = null;
 let tried = false;

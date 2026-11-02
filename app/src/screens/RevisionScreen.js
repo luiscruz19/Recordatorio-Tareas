@@ -5,8 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight, Check, Trash2, History } from 'lucide-react-native';
 import { C, F, R, GRAD_HEADER, shadowHeader, shadowCard } from '../theme';
 
-// Revisión obligatoria de inicio del día: por cada tarea que quedó pendiente de días anteriores,
-// decidir Pasar a hoy / Hecha / Eliminar. No se puede cerrar hasta resolver todas.
+// Revisión obligatoria: no se puede cerrar hasta resolver todas las tareas de días anteriores.
 export function RevisionScreen({ visible, tasks, onToday, onDone, onDelete, onAllToday }) {
     const insets = useSafeAreaInsets();
     const count = tasks?.length || 0;

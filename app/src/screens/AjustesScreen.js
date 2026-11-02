@@ -35,7 +35,7 @@ function timeLabel(t) {
 
 export function AjustesScreen({ settings, onBack, onChange, onSimulateReview, notifStatus, onLock, onLogout }) {
     const insets = useSafeAreaInsets();
-    const [picker, setPicker] = useState(null); // { section: 'plan'|'close', field: 'start'|'end' } | null
+    const [picker, setPicker] = useState(null);
     const s = settings || {};
     const notifOn = !!s.notif_enabled;
     const notifLabel = notifStatus === 'granted' || notifOn ? 'Activadas · suenan en tus franjas' : 'Desactivadas';
@@ -43,14 +43,13 @@ export function AjustesScreen({ settings, onBack, onChange, onSimulateReview, no
     const planOn = s.plan_enabled !== false;
     const closeOn = s.close_enabled !== false;
 
-    // Valor y campo del picker actual (según sección).
     const pickerValue = picker
         ? (picker.section === 'plan'
             ? (picker.field === 'start' ? s.plan_window_start : s.plan_window_end)
             : (picker.field === 'start' ? s.close_window_start : s.close_window_end))
         : null;
     const applyPicker = (time) => {
-        const key = `${picker.section}_window_${picker.field}`; // plan_window_start, close_window_end, ...
+        const key = `${picker.section}_window_${picker.field}`;
         onChange({ [key]: time });
     };
 
@@ -68,7 +67,6 @@ export function AjustesScreen({ settings, onBack, onChange, onSimulateReview, no
             </LinearGradient>
 
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 22, paddingBottom: 40 + insets.bottom }}>
-                {/* ─── PLANIFICACIÓN (mañana) ─── */}
                 <SectionHeader icon={<Sunrise size={17} color={C.accent} strokeWidth={1.9} />} title="Planificación (mañana)"
                     on={planOn} onToggle={(v) => onChange({ plan_enabled: v })} />
                 {planOn && (
@@ -86,7 +84,6 @@ export function AjustesScreen({ settings, onBack, onChange, onSimulateReview, no
                     </>
                 )}
 
-                {/* ─── CIERRE (tarde) ─── */}
                 <View style={{ marginTop: 30 }}>
                     <SectionHeader icon={<Moon size={17} color={C.accent} strokeWidth={1.9} />} title="Cierre (tarde)"
                         on={closeOn} onToggle={(v) => onChange({ close_enabled: v })} />
@@ -103,7 +100,6 @@ export function AjustesScreen({ settings, onBack, onChange, onSimulateReview, no
                     </>
                 )}
 
-                {/* Notificaciones */}
                 <Text style={[label, { marginTop: 26 }]}>Notificaciones</Text>
                 <View style={{ backgroundColor: C.surface, borderRadius: R.lg, ...shadowCard }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 16 }}>
@@ -123,7 +119,6 @@ export function AjustesScreen({ settings, onBack, onChange, onSimulateReview, no
                     </View>
                 </View>
 
-                {/* Demo */}
                 <Text style={[label, { marginTop: 26 }]}>Demo</Text>
                 <Pressable onPress={onSimulateReview}
                     style={({ pressed }) => ({ backgroundColor: pressed ? '#FAFBFD' : C.surface, borderRadius: R.lg, paddingHorizontal: 18, paddingVertical: 17, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', ...shadowCard })}>
@@ -134,7 +129,6 @@ export function AjustesScreen({ settings, onBack, onChange, onSimulateReview, no
                     <ChevronRight size={18} color="#C2C8D2" strokeWidth={2} />
                 </Pressable>
 
-                {/* Sesión */}
                 {(onLock || onLogout) && (
                     <>
                         <Text style={[label, { marginTop: 26 }]}>Sesión</Text>
@@ -177,7 +171,6 @@ export function AjustesScreen({ settings, onBack, onChange, onSimulateReview, no
     );
 }
 
-// Cabecera de sección con interruptor propio.
 function SectionHeader({ icon, title, on, onToggle }) {
     return (
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 6, paddingBottom: 12 }}>
@@ -195,7 +188,6 @@ function SectionHeader({ icon, title, on, onToggle }) {
     );
 }
 
-// Fila de intervalos (chips).
 function IntervalRow({ options, value, onPick }) {
     return (
         <View style={{ backgroundColor: C.surface, borderRadius: R.lg, padding: 6, flexDirection: 'row', gap: 6, ...shadowCard }}>

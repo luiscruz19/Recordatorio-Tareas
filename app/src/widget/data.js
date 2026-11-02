@@ -1,11 +1,10 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Puente de datos app ↔ widget: la app guarda el snapshot de "hoy" y pide refrescar el widget.
 const KEY = 'widget_today';
 
 export async function saveWidgetData(data) {
-    try { await AsyncStorage.setItem(KEY, JSON.stringify(data)); } catch { /* no-op */ }
+    try { await AsyncStorage.setItem(KEY, JSON.stringify(data)); } catch {}
 }
 
 export async function loadWidgetData() {
@@ -17,7 +16,6 @@ export async function loadWidgetData() {
     }
 }
 
-// Pide a Android que redibuje el widget con los datos actuales. Android-only y best-effort.
 export async function refreshWidget() {
     if (Platform.OS !== 'android') return;
     try {

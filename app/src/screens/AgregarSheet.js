@@ -6,7 +6,6 @@ import { Plus } from 'lucide-react-native';
 import { C, F, R } from '../theme';
 import { fmtDateShort, toISO, todayISO } from '../helpers';
 
-// Altura del teclado (0 cuando está cerrado) para levantar la hoja por encima.
 function useKeyboardHeight() {
     const [h, setH] = useState(0);
     useEffect(() => {
@@ -19,7 +18,6 @@ function useKeyboardHeight() {
     return h;
 }
 
-// Bottom sheet para agregar una tarea: texto + Para (Hoy / Otro día) + fecha opcional.
 export function AgregarSheet({ visible, onClose, onSubmit }) {
     const insets = useSafeAreaInsets();
     const kb = useKeyboardHeight();

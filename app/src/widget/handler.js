@@ -1,7 +1,6 @@
 import { Platform } from 'react-native';
 
-// Registra el task handler del widget (Android-only). Todo se carga de forma perezosa para no
-// importar el módulo nativo en iOS / web / Expo Go.
+// Carga perezosa para no importar el módulo nativo en iOS, web o Expo Go.
 if (Platform.OS === 'android') {
     try {
         const React = require('react');
@@ -22,7 +21,7 @@ if (Platform.OS === 'android') {
                     break;
                 case 'WIDGET_CLICK': {
                     const uri = props.clickActionData && props.clickActionData.uri;
-                    if (uri) { try { await Linking.openURL(uri); } catch { /* no-op */ } }
+                    if (uri) { try { await Linking.openURL(uri); } catch {} }
                     props.renderWidget(element);
                     break;
                 }

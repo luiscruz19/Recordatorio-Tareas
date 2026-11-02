@@ -1,8 +1,6 @@
 import React from 'react';
 import { FlexWidget, TextWidget } from 'react-native-android-widget';
 
-// Widget de pantalla de inicio (Android), fondo azul de marca. Pendientes de hoy + botón "+".
-// Tocar el widget abre la app; el "+" abre el formulario de nueva tarea.
 export function TaskWidget({ data }) {
     const pending = (data && data.pending) || [];
     const done = (data && data.done) || 0;
